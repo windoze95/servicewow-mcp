@@ -5,12 +5,16 @@ import { createApp } from "../../src/server.js";
 const mocks = vi.hoisted(() => ({
   connect: vi.fn(),
   registerAllTools: vi.fn(),
+  getUserForReconnectToken: vi.fn().mockResolvedValue(null),
+  getToken: vi.fn().mockResolvedValue(null),
+  storeSessionMappingWithTTL: vi.fn().mockResolvedValue(undefined),
+  refreshReconnectTokenTTL: vi.fn().mockResolvedValue(undefined),
   transportInstances: [] as Array<{
     handleRequest: ReturnType<typeof vi.fn>;
     close: ReturnType<typeof vi.fn>;
     onclose?: () => void;
     sessionId?: string;
-  }> ,
+  }>,
 }));
 
 vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => ({
@@ -54,10 +58,24 @@ vi.mock("../../src/tools/registry.js", () => ({
   registerAllTools: mocks.registerAllTools,
 }));
 
+vi.mock("../../src/auth/tokenStore.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/auth/tokenStore.js")>();
+  return {
+    ...actual,
+    TokenStore: class {
+      getUserForReconnectToken = mocks.getUserForReconnectToken;
+      getToken = mocks.getToken;
+      refreshReconnectTokenTTL = mocks.refreshReconnectTokenTTL;
+      storeSessionMappingWithTTL = mocks.storeSessionMappingWithTTL;
+    },
+  };
+});
+
 describe("createApp", () => {
   const baseConfig = {
     TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64"),
     ALLOWED_ORIGINS: ["*"],
+    RECONNECT_TOKEN_TTL: 8640000,
   };
 
   beforeEach(() => {
@@ -126,6 +144,49 @@ describe("createApp", () => {
 
     expect(mocks.connect).toHaveBeenCalledTimes(1);
     expect(firstTransport.handleRequest).toHaveBeenCalledTimes(2);
+  });
+
+  it("auto-maps session via reconnect token when valid", async () => {
+    mocks.getUserForReconnectToken.mockResolvedValueOnce("user-abc");
+    mocks.getToken.mockResolvedValueOnce({ access_token: "at" });
+    const redis = { ping: vi.fn().mockResolvedValue("PONG") };
+    const app = await createApp(baseConfig as any, redis as any);
+
+    await request(app).post("/mcp?token=validhex").send({}).expect(200);
+
+    expect(mocks.getUserForReconnectToken).toHaveBeenCalledWith("validhex");
+    expect(mocks.getToken).toHaveBeenCalledWith("user-abc");
+    expect(mocks.refreshReconnectTokenTTL).toHaveBeenCalledWith(
+      "validhex",
+      "user-abc",
+      expect.any(Number)
+    );
+    expect(mocks.storeSessionMappingWithTTL).toHaveBeenCalledWith(
+      expect.any(String),
+      "user-abc",
+      604800
+    );
+  });
+
+  it("falls through gracefully with invalid reconnect token", async () => {
+    mocks.getUserForReconnectToken.mockResolvedValueOnce(null);
+    const redis = { ping: vi.fn().mockResolvedValue("PONG") };
+    const app = await createApp(baseConfig as any, redis as any);
+
+    await request(app).post("/mcp?token=invalidhex").send({}).expect(200);
+
+    expect(mocks.getUserForReconnectToken).toHaveBeenCalledWith("invalidhex");
+    expect(mocks.storeSessionMappingWithTTL).not.toHaveBeenCalled();
+  });
+
+  it("creates normal session when no token query param", async () => {
+    const redis = { ping: vi.fn().mockResolvedValue("PONG") };
+    const app = await createApp(baseConfig as any, redis as any);
+
+    await request(app).post("/mcp").send({}).expect(200);
+
+    expect(mocks.getUserForReconnectToken).not.toHaveBeenCalled();
+    expect(mocks.storeSessionMappingWithTTL).not.toHaveBeenCalled();
   });
 
   it("closes and removes session on DELETE /mcp", async () => {

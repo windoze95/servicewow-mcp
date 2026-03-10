@@ -8,7 +8,7 @@
 ## Architecture Highlights
 - `src/index.ts`: process startup/shutdown wiring.
 - `src/server.ts`: Express app, MCP routes, session lifecycle.
-- `src/auth/*`: OAuth callback, encryption, token store, refresh logic.
+- `src/auth/*`: OAuth callback, encryption, token store, refresh logic, reconnect tokens.
 - `src/tools/*`: MCP tool implementations grouped by domain.
 - `src/middleware/*`: error normalization, rate limiting, session helpers.
 - `src/servicenow/*`: API client and query building.
@@ -25,6 +25,10 @@
 - Do not modify generated/runtime folders (`dist/`, `coverage/`, `node_modules/`).
 - Do not add dependencies unless necessary.
 - Never commit secrets or sample real credentials.
+- Never log raw reconnect tokens; pino redact config guards this as defense-in-depth.
+
+## Documentation
+- Keep `README.md` aligned when adding or changing features, endpoints, config, or behavior — but keep it concise; don't overcrowd it.
 
 ## Validation Commands
 - Build: `npm run build`

@@ -12,6 +12,7 @@ describe("loadConfig", () => {
     delete process.env.LOG_LEVEL;
     delete process.env.RATE_LIMIT_PER_USER;
     delete process.env.ALLOWED_ORIGINS;
+    delete process.env.RECONNECT_TOKEN_TTL;
   });
 
   afterEach(() => {
@@ -36,6 +37,7 @@ describe("loadConfig", () => {
     expect(config.NODE_ENV).toBe("development");
     expect(config.LOG_LEVEL).toBe("info");
     expect(config.RATE_LIMIT_PER_USER).toBe(60);
+    expect(config.RECONNECT_TOKEN_TTL).toBe(8640000);
     expect(config.ALLOWED_ORIGINS).toEqual([
       "https://a.example.com",
       "https://b.example.com",

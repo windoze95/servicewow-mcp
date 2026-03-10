@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import { Router, json, type Request, type Response } from "express";
 import crypto from "node:crypto";
 import axios from "axios";
 import { type Config } from "../config.js";
@@ -163,6 +163,73 @@ export function createOAuthRouter(
         },
       });
     }
+  });
+
+  // POST /oauth/reconnect-token — generate a reconnect token
+  router.post("/reconnect-token", json(), async (req: Request, res: Response) => {
+    const { user_sys_id } = req.body ?? {};
+
+    if (!user_sys_id || typeof user_sys_id !== "string") {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_REQUEST", message: "Missing user_sys_id" },
+      });
+      return;
+    }
+
+    // Verify user has OAuth credentials in Redis
+    const existing = await tokenStore.getToken(user_sys_id);
+    if (!existing) {
+      res.status(404).json({
+        success: false,
+        error: { code: "NO_CREDENTIALS", message: "No OAuth credentials found for this user" },
+      });
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const ttl = config.RECONNECT_TOKEN_TTL;
+    await tokenStore.storeReconnectToken(token, user_sys_id, ttl);
+
+    logger.info({ userSysId: user_sys_id }, "Reconnect token generated");
+
+    res.status(201).json({
+      success: true,
+      reconnect_token: token,
+      ttl_seconds: ttl,
+    });
+  });
+
+  // DELETE /oauth/reconnect-token — revoke reconnect token(s)
+  router.delete("/reconnect-token", json(), async (req: Request, res: Response) => {
+    const { user_sys_id, reconnect_token, revoke_all } = req.body ?? {};
+
+    if (!user_sys_id || typeof user_sys_id !== "string") {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_REQUEST", message: "Missing user_sys_id" },
+      });
+      return;
+    }
+
+    if (revoke_all) {
+      await tokenStore.revokeAllReconnectTokens(user_sys_id);
+      logger.info({ userSysId: user_sys_id }, "All reconnect tokens revoked");
+      res.status(200).json({ success: true, message: "All reconnect tokens revoked" });
+      return;
+    }
+
+    if (!reconnect_token || typeof reconnect_token !== "string") {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_REQUEST", message: "Missing reconnect_token or revoke_all" },
+      });
+      return;
+    }
+
+    await tokenStore.revokeReconnectToken(reconnect_token, user_sys_id);
+    logger.info({ userSysId: user_sys_id }, "Reconnect token revoked");
+    res.status(200).json({ success: true, message: "Reconnect token revoked" });
   });
 
   return router;

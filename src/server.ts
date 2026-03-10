@@ -6,7 +6,7 @@ import type { Redis } from "ioredis";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { type Config } from "./config.js";
-import { TokenStore } from "./auth/tokenStore.js";
+import { TokenStore, RECONNECT_SESSION_TTL } from "./auth/tokenStore.js";
 import { createOAuthRouter } from "./auth/oauth.js";
 import { registerAllTools } from "./tools/registry.js";
 import { logger } from "./utils/logger.js";
@@ -60,7 +60,7 @@ export async function createApp(
   // Per-session MCP server + transport storage
   const sessions = new Map<string, SessionEntry>();
 
-  function createMcpSession(): SessionEntry {
+  function createMcpSession(reconnectUserSysId?: string): SessionEntry {
     let resolvedSessionId: string | undefined;
 
     const server = new McpServer({
@@ -70,10 +70,19 @@ export async function createApp(
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (sessionId: string) => {
+      onsessioninitialized: async (sessionId: string) => {
         resolvedSessionId = sessionId;
         sessions.set(sessionId, entry);
-        logger.info({ sessionId }, "MCP session initialized");
+        if (reconnectUserSysId) {
+          await tokenStore.storeSessionMappingWithTTL(
+            sessionId,
+            reconnectUserSysId,
+            RECONNECT_SESSION_TTL
+          );
+          logger.info({ sessionId }, "MCP session initialized via reconnect token");
+        } else {
+          logger.info({ sessionId }, "MCP session initialized");
+        }
       },
     });
 
@@ -115,7 +124,32 @@ export async function createApp(
     }
 
     // No session or unknown session — this should be an initialize request
-    const entry = createMcpSession();
+    // Check for reconnect token in query string
+    let reconnectUserSysId: string | undefined;
+    const reconnectToken = req.query.token as string | undefined;
+    if (reconnectToken) {
+      try {
+        const userSysId = await tokenStore.getUserForReconnectToken(reconnectToken);
+        if (userSysId) {
+          // Verify the user still has valid OAuth credentials
+          const creds = await tokenStore.getToken(userSysId);
+          if (creds) {
+            reconnectUserSysId = userSysId;
+            await tokenStore.refreshReconnectTokenTTL(
+              reconnectToken,
+              userSysId,
+              config.RECONNECT_TOKEN_TTL
+            );
+            logger.info("Session auto-mapped via reconnect token");
+          }
+        }
+      } catch (err) {
+        // Silently fall through — user can still authenticate via OAuth
+        logger.warn({ err }, "Reconnect token lookup failed");
+      }
+    }
+
+    const entry = createMcpSession(reconnectUserSysId);
 
     // Connect server to transport
     await entry.server.connect(entry.transport);

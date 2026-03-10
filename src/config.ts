@@ -21,6 +21,7 @@ const configSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
   RATE_LIMIT_PER_USER: z.coerce.number().int().positive().default(60),
+  RECONNECT_TOKEN_TTL: z.coerce.number().int().positive().default(8640000),
   TLS_CERT_PATH: z.string().optional(),
   TLS_KEY_PATH: z.string().optional(),
   ALLOWED_ORIGINS: z
