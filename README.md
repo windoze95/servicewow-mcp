@@ -1,138 +1,332 @@
 # ServiceNow MCP Server
 
-An MCP (Model Context Protocol) server that proxies authenticated ServiceNow REST API access through per-user OAuth 2.0 tokens. Every action runs as the authenticated user, inheriting their ACLs, roles, and audit trail.
+![Node 22+](https://img.shields.io/badge/Node-22%2B-43853d?logo=node.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP-6f42c1)
+![OAuth 2.0](https://img.shields.io/badge/Auth-OAuth%202.0-0a66c2)
+![CI](https://img.shields.io/badge/CI-Build%20%2B%20Coverage-success)
 
-## Architecture
+Secure, enterprise-ready MCP server for ServiceNow where every action runs as the authenticated user.
 
+No shared service accounts. No ACL bypass. Full audit-trail fidelity.
+
+---
+
+## ⚡ Why This Exists
+
+Instead of funneling every request through a shared service account, this server executes actions as the actual human user.
+
+Because it uses **per-user OAuth tokens**, ServiceNow still enforces:
+
+- each user’s ACLs and roles,
+- their approval authority,
+- and native user-level audit logging.
+
+Result: safer automation, cleaner compliance, fewer permission hacks.
+
+---
+
+## 🔥 Core Capabilities
+
+- Per-user OAuth 2.0 Authorization Code flow + refresh
+- AES-256-GCM encrypted token storage in Redis
+- Streamable HTTP MCP transport with per-session lifecycle
+- Tool-level identity protections for sensitive operations
+- Per-user rate limiting via Redis token bucket
+- Input validation + normalized error responses
+- CI-enforced build + test + coverage gate
+
+---
+
+## 🧠 Architecture
+
+```mermaid
+flowchart LR
+    Client[MCP Client] --> MCP[ServiceNow MCP Server\nExpress + MCP SDK]
+    MCP --> Redis[(Redis\nEncrypted tokens + sessions)]
+    MCP --> SN[(ServiceNow REST APIs)]
+
+    MCP --> OAuth[OAuth 2.0\nPer-user delegation]
+    SN --> ACL[ACL + Role Enforcement]
+    SN --> Audit[Native Audit Trail]
 ```
-MCP Client ──► MCP Server (Express + Streamable HTTP) ──► ServiceNow REST API
-                        │
-                        └──► Redis (encrypted token store)
-```
 
-- **Per-user OAuth 2.0**: Authorization Code Grant flow — no shared service accounts
-- **Encrypted token storage**: AES-256-GCM encrypted at rest in Redis
-- **Per-session MCP instances**: Each MCP session gets its own server + transport pair
-- **Rate limiting**: Token bucket algorithm per user via Redis
+Key modules:
 
-## Quick Start
+- `src/index.ts` — startup/shutdown wiring
+- `src/server.ts` — HTTP app + MCP routes/session lifecycle
+- `src/auth/*` — OAuth callback, encryption, token store, token refresh
+- `src/tools/*` — tool implementations by domain
+- `src/middleware/*` — rate limiting, error normalization
+- `src/servicenow/*` — API client + query helpers
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 22+
-- Redis (or Docker Compose)
-- A ServiceNow instance with an OAuth Application Registry entry
+- Redis
+- ServiceNow instance with OAuth app configured
 
-### Development
+### Local Setup
 
 ```bash
-# Install dependencies
 npm install
-
-# Copy and configure environment
 cp .env.example .env
-# Edit .env with your ServiceNow instance details
-
-# Generate encryption key
 npm run generate-key
-# Add the output to your .env file
-
-# Start in development mode
+# paste generated key into TOKEN_ENCRYPTION_KEY in .env
 npm run dev
 ```
 
-### Docker Deployment
+Health check:
 
 ```bash
-# One-shot setup (Linux VM)
-chmod +x setup.sh
-./setup.sh
+curl -s http://localhost:8080/health
+```
 
-# Or manually:
+### Docker
+
+```bash
 docker compose up -d --build
 ```
 
-## ServiceNow Setup
+One-shot Linux VM setup is available via `setup.sh`.
 
-### OAuth Application
+---
 
-1. Navigate to **System OAuth > Application Registry** in ServiceNow
-2. Create: **"Create an OAuth API endpoint for external clients"**
-3. Configure:
-   - **Redirect URL**: `https://<your-host>:8080/oauth/callback`
-   - Note the **Client ID** and **Client Secret**
-4. Add these to your `.env` file
+## 🛠 ServiceNow Setup
 
-### User Role Requirements
+1. Go to **System OAuth > Application Registry**
+2. Create **OAuth API endpoint for external clients**
+3. Set redirect URI (example): `https://<host>:8080/oauth/callback`
+4. Copy client ID/secret into `.env`
 
-Users who will connect through this MCP server need the **`snc_platform_rest_api_access`** role to make REST API calls. Without it, ServiceNow returns a 403 on all API requests (this is enforced when the system property `glide.rest.enable_role_based_access` is `true`, which is the default on newer instances).
+### Required Role
 
-To grant access:
-- **Per user**: Assign `snc_platform_rest_api_access` directly to the user record
-- **Via group**: Create a group (e.g., "MCP Users"), add the role to the group, and manage membership there
+Users should have `snc_platform_rest_api_access` for REST API access. Record-level ACLs still apply.
 
-This role only grants the ability to call REST APIs — actual record-level access is still governed by each user's existing ACLs and roles.
+---
 
-## Available Tools (18 total)
+## 🧰 Tools (18)
 
-### Incident Management
-| Tool | Description |
-|------|-------------|
-| `search_incidents` | Query incidents with filters (state, priority, assigned to me) |
-| `get_incident` | Get full incident details by number or sys_id |
-| `create_incident` | Create a new incident |
-| `update_incident` | Update fields on an existing incident |
-| `add_work_note` | Add a work note or customer-visible comment |
+### Incidents
 
-### User & Group Lookup
-| Tool | Description |
-|------|-------------|
-| `lookup_user` | Search users by name, email, or employee ID |
-| `lookup_group` | Search assignment groups by name |
-| `get_my_profile` | Get your own ServiceNow profile |
+- `search_incidents`
+- `get_incident`
+- `create_incident`
+- `update_incident`
+- `add_work_note`
 
-### Knowledge Base
-| Tool | Description |
-|------|-------------|
-| `search_knowledge` | Full-text search across knowledge bases |
-| `get_article` | Get a full knowledge article |
+### Users and Groups
 
-### Task Management
-| Tool | Description |
-|------|-------------|
-| `get_my_tasks` | Get all open tasks assigned to you |
-| `get_my_approvals` | Get your pending approvals |
-| `approve_or_reject` | Approve or reject a pending approval |
+- `lookup_user`
+- `lookup_group`
+- `get_my_profile`
 
-### Update Set Management
-| Tool | Description |
-|------|-------------|
-| `change_update_set` | Change your current in-progress update set by sys_id or exact name |
-| `create_update_set` | Create a new update set and optionally set it as current |
+### Knowledge
+
+- `search_knowledge`
+- `get_article`
+
+### Tasks and Approvals
+
+- `get_my_tasks`
+- `get_my_approvals`
+- `approve_or_reject`
+
+### Update Sets
+
+- `change_update_set`
+- `create_update_set`
 
 ### Service Catalog
-| Tool | Description |
-|------|-------------|
-| `search_catalog_items` | Search the service catalog |
-| `get_catalog_item` | Get catalog item details and form variables |
-| `submit_catalog_request` | Submit a catalog request |
 
-## Security
+- `search_catalog_items`
+- `get_catalog_item`
+- `submit_catalog_request`
 
-Several tools enforce server-side identity protections to prevent impersonation or audit trail tampering:
+---
 
-| Tool | Protection |
-|------|------------|
-| `create_incident` | `caller_id` is always set to the authenticated user — cannot be overridden via input |
-| `update_incident` | Protected audit fields (`caller_id`, `opened_by`, `sys_created_by`, `sys_updated_by`, `closed_by`, `resolved_by`, `sys_id`, `number`, `opened_at`, `sys_created_on`, `sys_updated_on`, `sys_mod_count`) are stripped from update payloads |
-| `submit_catalog_request` | `requested_for` is always set to the authenticated user — cannot be overridden via input |
-| `approve_or_reject` | Verifies the approval record belongs to the authenticated user before allowing action |
+## 🔒 Security Guarantees
 
-These protections are enforced at the server level and cannot be bypassed by the AI or user input.
+Server-side protections include:
 
-## Client Configuration
+- `create_incident`: caller identity is server-controlled
+- `update_incident`: protected audit/system fields are stripped
+- `submit_catalog_request`: requester identity is server-controlled
+- `approve_or_reject`: approval ownership is verified
 
-### Claude Desktop
+Also enforced:
+
+- `sys_id` and enum validation
+- payload sanitization
+- normalized error responses
+
+---
+
+## ⚙️ Configuration
+
+| Variable | Required | Description |
+|---|---|---|
+| `SERVICENOW_INSTANCE_URL` | Yes | ServiceNow base URL |
+| `SERVICENOW_CLIENT_ID` | Yes | OAuth client ID |
+| `SERVICENOW_CLIENT_SECRET` | Yes | OAuth client secret |
+| `OAUTH_REDIRECT_URI` | Yes | OAuth callback URL |
+| `TOKEN_ENCRYPTION_KEY` | Yes | Base64 32-byte AES key |
+| `REDIS_URL` | No | Redis URL (default `redis://localhost:6379`) |
+| `MCP_PORT` | No | Server port (default `8080`) |
+| `RATE_LIMIT_PER_USER` | No | Requests/minute/user (default `60`) |
+
+---
+
+## ✅ Testing and Quality
+
+```bash
+npm run build
+npm test
+npm run test:coverage
+```
+
+- Coverage thresholds are configured in `vitest.config.ts`
+- CI runs build + tests + coverage gate on PRs and `main`
+
+---
+
+## 🧯 Troubleshooting
+
+### 1) OAuth callback fails (`TOKEN_EXCHANGE_FAILED`)
+
+**Symptoms**
+
+- `/oauth/callback` returns 500
+- logs show token exchange failure or `invalid_grant`
+
+**Checks**
+
+- `OAUTH_REDIRECT_URI` exactly matches the ServiceNow OAuth app redirect URI
+- client ID and secret are correct
+- system clock is sane
+
+**Fix**
+
+- correct redirect/client credentials and restart server
+- re-run auth flow from `/oauth/authorize`
+
+### 2) Auth works, but API calls return 403
+
+**Symptoms**
+
+- tool calls fail with insufficient permissions
+
+**Checks**
+
+- user has `snc_platform_rest_api_access`
+- user has the needed table/record ACL permissions
+
+**Fix**
+
+- grant missing role or ACL permissions in ServiceNow
+
+### 3) Redis connectivity issues
+
+**Symptoms**
+
+- `/health` returns unhealthy
+- startup logs show Redis connection errors
+
+**Checks**
+
+- Redis is running and reachable
+- `REDIS_URL` is correct
+
+**Fix**
+
+- start Redis
+- correct `REDIS_URL`, then restart app
+
+### 4) CI fails on coverage threshold
+
+**Symptoms**
+
+- GitHub Actions fails during `npm run test:coverage`
+
+**Checks**
+
+- inspect uncovered lines in coverage output
+- ensure changed logic has matching tests
+
+**Fix**
+
+- add targeted tests
+- re-run locally with `npm run test:coverage`
+
+### 5) Tool says `AUTH_REQUIRED` after prior login
+
+**Symptoms**
+
+- tool requests re-auth unexpectedly
+
+**Checks**
+
+- refresh token may be expired/revoked
+- session mapping may be missing/expired
+
+**Fix**
+
+- re-authenticate via `/oauth/authorize`
+- confirm Redis persistence and restart behavior
+
+### Debug Command Cheat Sheet
+
+```bash
+# install + run
+npm install
+npm run dev
+
+# quality gates
+npm run build
+npm test
+npm run test:coverage
+
+# health check
+curl -s http://localhost:8080/health
+
+# local redis quick check (when redis-cli is available)
+redis-cli -u "$REDIS_URL" ping
+
+# docker compose stack quick status
+docker compose ps
+docker compose logs -f
+```
+
+---
+
+## 🤖 Agent Instruction Files
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `.github/copilot-instructions.md`
+
+Alignment workflow validates expected consistency.
+
+---
+
+## 🌐 Endpoints
+
+| Path | Method | Purpose |
+|---|---|---|
+| `/health` | GET | Health status |
+| `/oauth/authorize` | GET | Start OAuth flow |
+| `/oauth/callback` | GET | OAuth callback/token exchange |
+| `/mcp` | POST | MCP initialize + tool calls |
+| `/mcp` | GET | MCP notifications stream |
+| `/mcp` | DELETE | Close MCP session |
+
+---
+
+## Client Config Example (Claude Desktop)
 
 ```json
 {
@@ -145,39 +339,6 @@ These protections are enforced at the server level and cannot be bypassed by the
 }
 ```
 
-## Configuration
+---
 
-All configuration via environment variables. See `.env.example` for the full list.
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SERVICENOW_INSTANCE_URL` | Yes | ServiceNow instance URL |
-| `SERVICENOW_CLIENT_ID` | Yes | OAuth client ID |
-| `SERVICENOW_CLIENT_SECRET` | Yes | OAuth client secret |
-| `OAUTH_REDIRECT_URI` | Yes | OAuth callback URL |
-| `TOKEN_ENCRYPTION_KEY` | Yes | Base64-encoded 32-byte AES key |
-| `REDIS_URL` | No | Redis connection string (default: `redis://localhost:6379`) |
-| `MCP_PORT` | No | Server port (default: `8080`) |
-| `RATE_LIMIT_PER_USER` | No | Requests per user per minute (default: `60`) |
-
-## Adding New Tools
-
-Copy `src/tools/_template.ts` and follow the pattern. Register your new tool in `src/tools/registry.ts`.
-
-## Testing
-
-```bash
-npm test          # Run unit tests
-npm run test:watch # Watch mode
-```
-
-## Endpoints
-
-| Path | Method | Description |
-|------|--------|-------------|
-| `/health` | GET | Health check |
-| `/oauth/authorize` | GET | Start OAuth flow |
-| `/oauth/callback` | GET | OAuth callback |
-| `/mcp` | POST | MCP initialize + tool calls |
-| `/mcp` | GET | MCP SSE notifications |
-| `/mcp` | DELETE | Close MCP session |
+Built for secure, user-scoped AI operations in ServiceNow.
