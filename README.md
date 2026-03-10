@@ -73,7 +73,7 @@ To grant access:
 
 This role only grants the ability to call REST APIs — actual record-level access is still governed by each user's existing ACLs and roles.
 
-## Available Tools (16 total)
+## Available Tools (18 total)
 
 ### Incident Management
 | Tool | Description |
@@ -104,12 +104,31 @@ This role only grants the ability to call REST APIs — actual record-level acce
 | `get_my_approvals` | Get your pending approvals |
 | `approve_or_reject` | Approve or reject a pending approval |
 
+### Update Set Management
+| Tool | Description |
+|------|-------------|
+| `change_update_set` | Change your current in-progress update set by sys_id or exact name |
+| `create_update_set` | Create a new update set and optionally set it as current |
+
 ### Service Catalog
 | Tool | Description |
 |------|-------------|
 | `search_catalog_items` | Search the service catalog |
 | `get_catalog_item` | Get catalog item details and form variables |
 | `submit_catalog_request` | Submit a catalog request |
+
+## Security
+
+Several tools enforce server-side identity protections to prevent impersonation or audit trail tampering:
+
+| Tool | Protection |
+|------|------------|
+| `create_incident` | `caller_id` is always set to the authenticated user — cannot be overridden via input |
+| `update_incident` | Protected audit fields (`caller_id`, `opened_by`, `sys_created_by`, `sys_updated_by`, `closed_by`, `resolved_by`, `sys_id`, `number`, `opened_at`, `sys_created_on`, `sys_updated_on`, `sys_mod_count`) are stripped from update payloads |
+| `submit_catalog_request` | `requested_for` is always set to the authenticated user — cannot be overridden via input |
+| `approve_or_reject` | Verifies the approval record belongs to the authenticated user before allowing action |
+
+These protections are enforced at the server level and cannot be bypassed by the AI or user input.
 
 ## Client Configuration
 
