@@ -11,6 +11,10 @@ RUN npm run build
 
 FROM node:22-alpine
 
+LABEL org.opencontainers.image.source="https://github.com/windoze95/servicewow-mcp"
+LABEL org.opencontainers.image.description="ServiceNow MCP Server"
+LABEL org.opencontainers.image.version="1.0.0"
+
 WORKDIR /app
 
 COPY package*.json ./
