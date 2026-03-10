@@ -25,9 +25,10 @@ COPY --from=builder /app/dist/ ./dist/
 RUN addgroup -S mcp && adduser -S mcp -G mcp
 USER mcp
 
-EXPOSE 3000
+ENV MCP_PORT=8080
+EXPOSE ${MCP_PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+  CMD wget -qO- http://localhost:${MCP_PORT}/health || exit 1
 
 CMD ["node", "dist/index.js"]
