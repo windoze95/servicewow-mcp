@@ -1,0 +1,39 @@
+name: Check AI Instructions Alignment
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.github/copilot-instructions.md'
+      - '.github/workflows/check-ai-instructions.yml'
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.github/copilot-instructions.md'
+      - '.github/workflows/check-ai-instructions.yml'
+
+jobs:
+  check-alignment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify instruction files match
+        run: |
+          echo "Checking if CLAUDE.md and .github/copilot-instructions.md match AGENTS.md..."
+          
+          if ! diff -q AGENTS.md CLAUDE.md; then
+            echo "::error file=CLAUDE.md::CLAUDE.md does not match AGENTS.md. Please ensure all AI instruction files are identical."
+            exit 1
+          fi
+          
+          if ! diff -q AGENTS.md .github/copilot-instructions.md; then
+            echo "::error file=.github/copilot-instructions.md::.github/copilot-instructions.md does not match AGENTS.md. Please ensure all AI instruction files are identical."
+            exit 1
+          fi
+          
+          echo "✅ All instruction files are perfectly aligned."

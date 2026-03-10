@@ -1,0 +1,187 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { TokenRefresher, AuthRequiredError } from "../../../src/auth/tokenRefresh.js";
+import type { StoredToken } from "../../../src/auth/tokenStore.js";
+
+const { mockAxiosPost } = vi.hoisted(() => ({
+  mockAxiosPost: vi.fn(),
+}));
+
+vi.mock("axios", () => ({
+  default: {
+    post: mockAxiosPost,
+  },
+}));
+
+const baseConfig = {
+  SERVICENOW_INSTANCE_URL: "https://example.service-now.com",
+  SERVICENOW_CLIENT_ID: "client-id",
+  SERVICENOW_CLIENT_SECRET: "client-secret",
+};
+
+describe("TokenRefresher", () => {
+  const mockTokenStore = {
+    getToken: vi.fn(),
+    storeToken: vi.fn(),
+    deleteToken: vi.fn(),
+  };
+
+  const mockRedis = {
+    set: vi.fn(),
+    del: vi.fn(),
+  };
+
+  const userSysId = "abc123def456abc123def456abc12345";
+
+  const buildToken = (expiresAt: number): StoredToken => ({
+    access_token: "access-old",
+    refresh_token: "refresh-old",
+    expires_at: expiresAt,
+    user_sys_id: userSysId,
+    user_name: "john.doe",
+    display_name: "John Doe",
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("throws AuthRequiredError when token is missing", async () => {
+    mockTokenStore.getToken.mockResolvedValue(null);
+
+    const refresher = new TokenRefresher(
+      baseConfig as any,
+      mockTokenStore as any,
+      mockRedis as any
+    );
+
+    await expect(refresher.ensureFreshToken(userSysId)).rejects.toBeInstanceOf(
+      AuthRequiredError
+    );
+  });
+
+  it("returns existing token when outside refresh buffer", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const now = Math.floor(Date.now() / 1000);
+    const freshToken = buildToken(now + 120);
+    mockTokenStore.getToken.mockResolvedValue(freshToken);
+
+    const refresher = new TokenRefresher(
+      baseConfig as any,
+      mockTokenStore as any,
+      mockRedis as any
+    );
+
+    const token = await refresher.ensureFreshToken(userSysId);
+
+    expect(token).toEqual(freshToken);
+    expect(mockRedis.set).not.toHaveBeenCalled();
+    expect(mockAxiosPost).not.toHaveBeenCalled();
+  });
+
+  it("refreshes expiring token and stores updated values", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const now = Math.floor(Date.now() / 1000);
+    const staleToken = buildToken(now + 30);
+
+    mockTokenStore.getToken
+      .mockResolvedValueOnce(staleToken)
+      .mockResolvedValueOnce(staleToken);
+    mockRedis.set.mockResolvedValue("OK");
+    mockRedis.del.mockResolvedValue(1);
+    mockTokenStore.storeToken.mockResolvedValue(undefined);
+    mockAxiosPost.mockResolvedValue({
+      data: {
+        access_token: "access-new",
+        expires_in: 1800,
+      },
+    });
+
+    const refresher = new TokenRefresher(
+      baseConfig as any,
+      mockTokenStore as any,
+      mockRedis as any
+    );
+
+    const updated = await refresher.ensureFreshToken(userSysId);
+
+    expect(mockRedis.set).toHaveBeenCalledWith(
+      `token_refresh_lock:${userSysId}`,
+      "1",
+      "EX",
+      10,
+      "NX"
+    );
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      "https://example.service-now.com/oauth_token.do",
+      expect.stringContaining("grant_type=refresh_token"),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
+    expect(mockTokenStore.storeToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        access_token: "access-new",
+        refresh_token: "refresh-old",
+        expires_at: now + 1800,
+      })
+    );
+    expect(updated.access_token).toBe("access-new");
+    expect(updated.refresh_token).toBe("refresh-old");
+    expect(mockRedis.del).toHaveBeenCalledWith(`token_refresh_lock:${userSysId}`);
+  });
+
+  it("waits and returns refreshed token when lock is already held", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-10T00:00:00.000Z"));
+    const now = Math.floor(Date.now() / 1000);
+    const staleToken = buildToken(now + 5);
+    const refreshedToken = buildToken(now + 3600);
+
+    mockTokenStore.getToken
+      .mockResolvedValueOnce(staleToken)
+      .mockResolvedValueOnce(refreshedToken);
+    mockRedis.set.mockResolvedValue(null);
+
+    const refresher = new TokenRefresher(
+      baseConfig as any,
+      mockTokenStore as any,
+      mockRedis as any
+    );
+
+    const pending = refresher.ensureFreshToken(userSysId);
+    await vi.advanceTimersByTimeAsync(1000);
+    const result = await pending;
+
+    expect(result).toEqual(refreshedToken);
+    expect(mockAxiosPost).not.toHaveBeenCalled();
+    expect(mockRedis.del).not.toHaveBeenCalled();
+  });
+
+  it("deletes token and throws AuthRequiredError when refresh is unauthorized", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const now = Math.floor(Date.now() / 1000);
+    const staleToken = buildToken(now + 10);
+
+    mockTokenStore.getToken
+      .mockResolvedValueOnce(staleToken)
+      .mockResolvedValueOnce(staleToken);
+    mockRedis.set.mockResolvedValue("OK");
+    mockRedis.del.mockResolvedValue(1);
+    mockAxiosPost.mockRejectedValue({ response: { status: 401 } });
+
+    const refresher = new TokenRefresher(
+      baseConfig as any,
+      mockTokenStore as any,
+      mockRedis as any
+    );
+
+    await expect(refresher.ensureFreshToken(userSysId)).rejects.toBeInstanceOf(
+      AuthRequiredError
+    );
+    expect(mockTokenStore.deleteToken).toHaveBeenCalledWith(userSysId);
+    expect(mockRedis.del).toHaveBeenCalledWith(`token_refresh_lock:${userSysId}`);
+  });
+});
