@@ -25,9 +25,27 @@ jobs:
       - run: npm run build
       - run: npm test
 
-  docker:
-    needs: test
+  changes:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      deployable: ${{ steps.filter.outputs.deployable }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            deployable:
+              - 'src/**'
+              - 'Dockerfile'
+              - 'package*.json'
+              - 'tsconfig.json'
+
+  docker:
+    needs: [test, changes]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.deployable == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
