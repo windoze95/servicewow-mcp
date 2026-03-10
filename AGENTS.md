@@ -27,6 +27,9 @@
 - Never commit secrets or sample real credentials.
 - Never log raw reconnect tokens; pino redact config guards this as defense-in-depth.
 
+## Documentation
+- Keep `README.md` aligned when adding or changing features, endpoints, config, or behavior — but keep it concise; don't overcrowd it.
+
 ## Validation Commands
 - Build: `npm run build`
 - Tests: `npm test`
