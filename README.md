@@ -188,7 +188,7 @@ After a server restart, in-memory MCP sessions are lost. Normally this requires 
 
 ### Token Management
 
-- Tokens default to 100-day TTL (configurable via `RECONNECT_TOKEN_TTL`)
+- Tokens default to 100-day TTL (configurable via `RECONNECT_TOKEN_TTL`), refreshed on each successful use
 - Revoke a specific token: `DELETE /oauth/reconnect-token` with `{"user_sys_id": "...", "reconnect_token": "..."}`
 - Revoke all tokens for a user: `DELETE /oauth/reconnect-token` with `{"user_sys_id": "...", "revoke_all": true}`
 - If a token is invalid or expired, the session silently falls through to normal (unauthenticated) behavior
