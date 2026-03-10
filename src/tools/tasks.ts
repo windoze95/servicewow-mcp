@@ -119,6 +119,27 @@ export function registerTaskTools(
           };
         }
 
+        // Verify approval belongs to the authenticated user
+        const { data: verifyData } = await ctx.snClient.get<
+          ServiceNowListResponse<Approval>
+        >("/api/now/table/sysapproval_approver", {
+          params: {
+            sysparm_query: `sys_id=${args.sys_id}^approver=${ctx.userSysId}`,
+            sysparm_limit: 1,
+            sysparm_fields: "sys_id",
+          },
+        });
+
+        if (!verifyData.result || verifyData.result.length === 0) {
+          return {
+            success: false,
+            error: {
+              code: "FORBIDDEN",
+              message: "Approval not found or does not belong to the authenticated user",
+            },
+          };
+        }
+
         const body: Record<string, string> = { state: args.action };
         if (args.comments) body.comments = args.comments;
 

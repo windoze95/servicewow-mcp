@@ -185,7 +185,6 @@ export function registerIncidentTools(
       subcategory: z.string().optional().describe("Incident subcategory"),
       assignment_group: z.string().optional().describe("Assignment group name or sys_id"),
       cmdb_ci: z.string().optional().describe("Configuration item name or sys_id"),
-      caller_id: z.string().optional().describe("Caller user name or sys_id (defaults to current user)"),
     },
     wrapHandler(
       async (
@@ -199,12 +198,11 @@ export function registerIncidentTools(
           subcategory?: string;
           assignment_group?: string;
           cmdb_ci?: string;
-          caller_id?: string;
         }
       ) => {
         const body: Record<string, unknown> = {
           short_description: args.short_description,
-          caller_id: args.caller_id || ctx.userSysId,
+          caller_id: ctx.userSysId, // Security safeguard: forcefully set to the authenticated user
         };
 
         if (args.description) body.description = args.description;

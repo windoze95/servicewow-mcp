@@ -12,7 +12,7 @@ export function createOAuthRouter(
   const router = Router();
 
   // GET /oauth/authorize — redirect user to ServiceNow OAuth
-  router.get("/oauth/authorize", async (req: Request, res: Response) => {
+  router.get("/authorize", async (req: Request, res: Response) => {
     const state = crypto.randomBytes(32).toString("hex");
     const sessionId = (req.query.session_id as string) || "";
 
@@ -31,7 +31,7 @@ export function createOAuthRouter(
   });
 
   // GET /oauth/callback — exchange code for tokens
-  router.get("/oauth/callback", async (req: Request, res: Response) => {
+  router.get("/callback", async (req: Request, res: Response) => {
     const { code, state, error } = req.query;
 
     if (error) {
@@ -88,12 +88,13 @@ export function createOAuthRouter(
 
       const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
-      // Look up user identity
+      // Look up authenticated user via server-side gs.getUserName() query
+      // This resolves to the user who owns the access token
       const userResponse = await axios.get(
         `${config.SERVICENOW_INSTANCE_URL}/api/now/table/sys_user`,
         {
           params: {
-            sysparm_query: `user_name=${tokenResponse.data.scope?.split(":")?.[0] || ""}`,
+            sysparm_query: "user_name=javascript:gs.getUserName()",
             sysparm_limit: 1,
             sysparm_fields: "sys_id,user_name,name,email",
           },
@@ -104,33 +105,16 @@ export function createOAuthRouter(
         }
       );
 
-      // If scope-based lookup fails, use the /api/now/table/sys_user endpoint with the token
-      let userInfo: { sys_id: string; user_name: string; name: string };
-
-      if (userResponse.data?.result?.length > 0) {
-        userInfo = userResponse.data.result[0];
-      } else {
-        // Fall back to getting user info from a different endpoint
-        const meResponse = await axios.get(
-          `${config.SERVICENOW_INSTANCE_URL}/api/now/table/sys_user`,
-          {
-            params: {
-              sysparm_query: "user_nameISNOTEMPTY",
-              sysparm_limit: 1,
-              sysparm_fields: "sys_id,user_name,name,email",
-            },
-            headers: {
-              Authorization: `Bearer ${access_token}`,
-              Accept: "application/json",
-            },
-          }
-        );
-
-        if (!meResponse.data?.result?.length) {
-          throw new Error("Unable to determine user identity");
-        }
-        userInfo = meResponse.data.result[0];
+      if (!userResponse.data?.result?.length) {
+        throw new Error("Unable to determine user identity from access token");
       }
+
+      const currentUser = userResponse.data.result[0];
+      const userInfo: { sys_id: string; user_name: string; name: string } = {
+        sys_id: currentUser.sys_id,
+        user_name: currentUser.user_name,
+        name: currentUser.name || currentUser.user_name,
+      };
 
       const storedToken: StoredToken = {
         access_token,
