@@ -32,6 +32,7 @@ Result: safer automation, cleaner compliance, fewer permission hacks.
 - AES-256-GCM encrypted token storage in Redis
 - Streamable HTTP MCP transport with per-session lifecycle
 - Tool-level identity protections for sensitive operations
+- Optional reconnect tokens for session persistence across server restarts
 - Per-user rate limiting via Redis token bucket
 - Input validation + normalized error responses
 - CI-enforced build + test + coverage gate
@@ -55,7 +56,7 @@ Key modules:
 
 - `src/index.ts` — startup/shutdown wiring
 - `src/server.ts` — HTTP app + MCP routes/session lifecycle
-- `src/auth/*` — OAuth callback, encryption, token store, token refresh
+- `src/auth/*` — OAuth callback, encryption, token store, token refresh, reconnect tokens
 - `src/tools/*` — tool implementations by domain
 - `src/middleware/*` — rate limiting, error normalization
 - `src/servicenow/*` — API client + query helpers
@@ -166,6 +167,34 @@ Also enforced:
 
 ---
 
+## 🔄 Reconnect Tokens
+
+After a server restart, in-memory MCP sessions are lost. Normally this requires re-doing the full OAuth flow. **Reconnect tokens** let clients skip re-auth by auto-mapping a new session to existing Redis-stored OAuth credentials.
+
+### How It Works
+
+1. Complete OAuth as normal
+2. Generate a reconnect token:
+   ```bash
+   curl -X POST https://host:8080/oauth/reconnect-token \
+     -H "Content-Type: application/json" \
+     -d '{"user_sys_id": "..."}'
+   ```
+3. Update your MCP client URL to include the token:
+   ```json
+   { "url": "https://host:8080/mcp?token=<hex>" }
+   ```
+4. On server restart, the client reconnects and is automatically authenticated
+
+### Token Management
+
+- Tokens default to 100-day TTL (configurable via `RECONNECT_TOKEN_TTL`)
+- Revoke a specific token: `DELETE /oauth/reconnect-token` with `{"user_sys_id": "...", "reconnect_token": "..."}`
+- Revoke all tokens for a user: `DELETE /oauth/reconnect-token` with `{"user_sys_id": "...", "revoke_all": true}`
+- If a token is invalid or expired, the session silently falls through to normal (unauthenticated) behavior
+
+---
+
 ## ⚙️ Configuration
 
 | Variable | Required | Description |
@@ -178,6 +207,7 @@ Also enforced:
 | `REDIS_URL` | No | Redis URL (default `redis://localhost:6379`) |
 | `MCP_PORT` | No | Server port (default `8080`) |
 | `RATE_LIMIT_PER_USER` | No | Requests/minute/user (default `60`) |
+| `RECONNECT_TOKEN_TTL` | No | Reconnect token TTL in seconds (default `8640000` / 100 days) |
 
 ---
 
@@ -262,7 +292,24 @@ npm run test:coverage
 - add targeted tests
 - re-run locally with `npm run test:coverage`
 
-### 5) Tool says `AUTH_REQUIRED` after prior login
+### 5) Reconnect token not working after restart
+
+**Symptoms**
+
+- Client connects with `?token=...` but session is unauthenticated
+
+**Checks**
+
+- Token may be expired (default 100-day TTL)
+- User's OAuth credentials may have been revoked or expired in Redis
+- Token may have been explicitly revoked
+
+**Fix**
+
+- Generate a new reconnect token via `POST /oauth/reconnect-token`
+- Re-authenticate via `/oauth/authorize` if OAuth credentials are gone
+
+### 6) Tool says `AUTH_REQUIRED` after prior login
 
 **Symptoms**
 
@@ -320,7 +367,10 @@ Alignment workflow validates expected consistency.
 | `/health` | GET | Health status |
 | `/oauth/authorize` | GET | Start OAuth flow |
 | `/oauth/callback` | GET | OAuth callback/token exchange |
+| `/oauth/reconnect-token` | POST | Generate a reconnect token |
+| `/oauth/reconnect-token` | DELETE | Revoke reconnect token(s) |
 | `/mcp` | POST | MCP initialize + tool calls |
+| `/mcp?token=<hex>` | POST | MCP initialize with reconnect token |
 | `/mcp` | GET | MCP notifications stream |
 | `/mcp` | DELETE | Close MCP session |
 
@@ -334,6 +384,19 @@ Alignment workflow validates expected consistency.
     "servicenow": {
       "type": "streamablehttp",
       "url": "https://your-host:8080/mcp"
+    }
+  }
+}
+```
+
+With a reconnect token for session persistence across restarts:
+
+```json
+{
+  "mcpServers": {
+    "servicenow": {
+      "type": "streamablehttp",
+      "url": "https://your-host:8080/mcp?token=<your-reconnect-token>"
     }
   }
 }
