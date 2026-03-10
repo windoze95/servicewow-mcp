@@ -1,0 +1,39 @@
+{
+  "name": "servicenow-mcp",
+  "version": "1.0.0",
+  "description": "ServiceNow MCP Server — per-user delegated access",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "generate-key": "tsx scripts/generate-encryption-key.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "express": "^5.1.0",
+    "ioredis": "^5.6.1",
+    "zod": "^3.24.4",
+    "axios": "^1.9.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "helmet": "^8.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "tsx": "^4.19.4",
+    "vitest": "^3.1.4",
+    "@types/node": "^22.15.3",
+    "@types/express": "^5.0.2",
+    "@types/cors": "^2.8.18",
+    "@types/uuid": "^10.0.0"
+  }
+}

@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  servicenow-mcp:
+    build: .
+    container_name: servicenow-mcp
+    restart: unless-stopped
+    ports:
+      - "${MCP_PORT:-3000}:3000"
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./certs:/certs:ro
+    networks:
+      - mcp-internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: servicenow-mcp-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - mcp-internal
+    expose:
+      - "6379"
+
+volumes:
+  redis-data:
+
+networks:
+  mcp-internal:
+    driver: bridge
