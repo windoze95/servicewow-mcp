@@ -59,7 +59,7 @@ docker compose up -d --build
 1. Navigate to **System OAuth > Application Registry** in ServiceNow
 2. Create: **"Create an OAuth API endpoint for external clients"**
 3. Configure:
-   - **Redirect URL**: `https://<your-host>:3000/oauth/callback`
+   - **Redirect URL**: `https://<your-host>:8080/oauth/callback`
    - Note the **Client ID** and **Client Secret**
 4. Add these to your `.env` file
 
@@ -139,7 +139,7 @@ These protections are enforced at the server level and cannot be bypassed by the
   "mcpServers": {
     "servicenow": {
       "type": "streamablehttp",
-      "url": "https://your-host:3000/mcp"
+      "url": "https://your-host:8080/mcp"
     }
   }
 }
@@ -157,7 +157,7 @@ All configuration via environment variables. See `.env.example` for the full lis
 | `OAUTH_REDIRECT_URI` | Yes | OAuth callback URL |
 | `TOKEN_ENCRYPTION_KEY` | Yes | Base64-encoded 32-byte AES key |
 | `REDIS_URL` | No | Redis connection string (default: `redis://localhost:6379`) |
-| `MCP_PORT` | No | Server port (default: `3000`) |
+| `MCP_PORT` | No | Server port (default: `8080`) |
 | `RATE_LIMIT_PER_USER` | No | Requests per user per minute (default: `60`) |
 
 ## Adding New Tools
