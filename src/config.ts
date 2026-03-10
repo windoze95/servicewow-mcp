@@ -13,7 +13,7 @@ const configSchema = z.object({
     .min(1)
     .describe("Base64-encoded 32-byte AES-256 key"),
   REDIS_URL: z.string().default("redis://localhost:6379"),
-  MCP_PORT: z.coerce.number().int().positive().default(3000),
+  MCP_PORT: z.coerce.number().int().positive().default(8080),
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),

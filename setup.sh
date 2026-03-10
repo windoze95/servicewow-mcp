@@ -61,6 +61,8 @@ generate_env() {
         read -rp "Overwrite? (y/N): " overwrite
         if [[ "$overwrite" != "y" && "$overwrite" != "Y" ]]; then
             echo "Keeping existing .env"
+            SERVER_PORT=$(grep -E '^MCP_PORT=' "$ENV_FILE" | cut -d= -f2)
+            SERVER_PORT=${SERVER_PORT:-8080}
             return
         fi
     fi
@@ -74,8 +76,8 @@ generate_env() {
     read -rsp "OAuth Client Secret: " CLIENT_SECRET
     echo ""
     read -rp "Server hostname/IP (for OAuth redirect URI): " SERVER_HOST
-    read -rp "Server port [3000]: " SERVER_PORT
-    SERVER_PORT=${SERVER_PORT:-3000}
+    read -rp "Server port [8080]: " SERVER_PORT
+    SERVER_PORT=${SERVER_PORT:-8080}
 
     # Auto-generate secrets
     TOKEN_ENCRYPTION_KEY=$(openssl rand -base64 32)
@@ -153,7 +155,7 @@ wait_for_health() {
     local attempt=0
 
     while [ $attempt -lt $max_attempts ]; do
-        if curl -sf "http://localhost:${SERVER_PORT:-3000}/health" > /dev/null 2>&1; then
+        if curl -sf "http://localhost:${SERVER_PORT:-8080}/health" > /dev/null 2>&1; then
             echo -e "${GREEN}✓ Server is healthy!${NC}"
             return
         fi
@@ -167,7 +169,7 @@ wait_for_health() {
 
 # 6. Print setup instructions
 print_instructions() {
-    local PORT=${SERVER_PORT:-3000}
+    local PORT=${SERVER_PORT:-8080}
     echo ""
     echo "========================================"
     echo -e "${BOLD}Setup Complete!${NC}"
