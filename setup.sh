@@ -61,6 +61,8 @@ generate_env() {
         read -rp "Overwrite? (y/N): " overwrite
         if [[ "$overwrite" != "y" && "$overwrite" != "Y" ]]; then
             echo "Keeping existing .env"
+            SERVER_PORT=$(grep -E '^MCP_PORT=' "$ENV_FILE" | cut -d= -f2)
+            SERVER_PORT=${SERVER_PORT:-8080}
             return
         fi
     fi
