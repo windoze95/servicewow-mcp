@@ -13,6 +13,7 @@ import { registerKnowledgeTools } from "./knowledge.js";
 import { registerTaskTools } from "./tasks.js";
 import { registerCatalogTools } from "./catalog.js";
 import { registerUpdateSetTools } from "./updateSets.js";
+import { registerChangeRequestTools } from "./changeRequests.js";
 
 export interface ToolContext {
   snClient: ServiceNowClient;
@@ -135,6 +136,7 @@ export function registerAllTools(
   registerTaskTools(server, wrapHandler);
   registerCatalogTools(server, wrapHandler);
   registerUpdateSetTools(server, wrapHandler);
+  registerChangeRequestTools(server, wrapHandler);
 
   logger.info("All tools registered");
 }

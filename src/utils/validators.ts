@@ -1,5 +1,6 @@
 const SYS_ID_REGEX = /^[0-9a-fA-F]{32}$/;
 const INCIDENT_NUMBER_REGEX = /^INC\d{7,}$/;
+const CHANGE_NUMBER_REGEX = /^CHG\d{7,}$/;
 
 export function validateSysId(value: string): boolean {
   return SYS_ID_REGEX.test(value);
@@ -7,6 +8,10 @@ export function validateSysId(value: string): boolean {
 
 export function validateIncidentNumber(value: string): boolean {
   return INCIDENT_NUMBER_REGEX.test(value);
+}
+
+export function validateChangeNumber(value: string): boolean {
+  return CHANGE_NUMBER_REGEX.test(value);
 }
 
 export function validateState(state: string): boolean {

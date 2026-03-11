@@ -88,6 +88,31 @@ export interface CatalogItem extends ServiceNowRecord {
   active: string;
 }
 
+export interface ChangeRequest extends ServiceNowRecord {
+  number: string;
+  short_description: string;
+  description?: string;
+  state: string;
+  type: string;
+  category?: string;
+  priority: string;
+  impact: string;
+  urgency: string;
+  risk: string;
+  assigned_to: string;
+  assignment_group: string;
+  requested_by: string;
+  opened_by: string;
+  start_date?: string;
+  end_date?: string;
+  close_code?: string;
+  close_notes?: string;
+  cmdb_ci?: string;
+  business_service?: string;
+  work_notes?: string;
+  comments?: string;
+}
+
 export interface KnowledgeArticle extends ServiceNowRecord {
   number: string;
   short_description: string;
