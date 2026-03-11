@@ -87,13 +87,38 @@ Health check:
 curl -s http://localhost:8080/health
 ```
 
-### Docker
+### Docker (Local / VPN)
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 ```
 
-One-shot Linux VM setup is available via `setup.sh`.
+### Public Deployment (Caddy + Automatic TLS)
+
+For internet-facing deployments, use the Caddy overlay for automatic HTTPS:
+
+```bash
+# Set your public domain
+echo "CADDY_DOMAIN=mcp.example.com" >> .env
+
+# Launch with Caddy reverse proxy
+docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+```
+
+Caddy auto-provisions Let's Encrypt certificates. Ensure ports 80 and 443 are open and DNS points to your server.
+
+### Native TLS (Non-Docker)
+
+For running without Docker or Caddy, set `TLS_CERT_PATH` and `TLS_KEY_PATH` in `.env` to enable built-in HTTPS:
+
+```bash
+TLS_CERT_PATH=/path/to/server.crt
+TLS_KEY_PATH=/path/to/server.key
+```
+
+### Automated Setup
+
+One-shot Linux VM setup is available via `setup.sh` (supports both local and public modes).
 
 ---
 
@@ -204,10 +229,14 @@ After a server restart, in-memory MCP sessions are lost. Normally this requires 
 | `SERVICENOW_CLIENT_SECRET` | Yes | OAuth client secret |
 | `OAUTH_REDIRECT_URI` | Yes | OAuth callback URL |
 | `TOKEN_ENCRYPTION_KEY` | Yes | Base64 32-byte AES key |
+| `ALLOWED_ORIGINS` | Yes | Comma-separated CORS origins (e.g. `https://claude.ai`) |
 | `REDIS_URL` | No | Redis URL (default `redis://localhost:6379`) |
 | `MCP_PORT` | No | Server port (default `8080`) |
 | `RATE_LIMIT_PER_USER` | No | Requests/minute/user (default `60`) |
 | `RECONNECT_TOKEN_TTL` | No | Reconnect token TTL in seconds (default `8640000` / 100 days) |
+| `TLS_CERT_PATH` | No | Path to TLS certificate (must pair with `TLS_KEY_PATH`) |
+| `TLS_KEY_PATH` | No | Path to TLS private key (must pair with `TLS_CERT_PATH`) |
+| `CADDY_DOMAIN` | No | Domain for Caddy auto-TLS (used with `docker-compose.caddy.yml`) |
 
 ---
 

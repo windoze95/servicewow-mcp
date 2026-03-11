@@ -26,9 +26,12 @@ const configSchema = z.object({
   TLS_KEY_PATH: z.string().optional(),
   ALLOWED_ORIGINS: z
     .string()
-    .default("*")
+    .min(1, "ALLOWED_ORIGINS is required — set to a comma-separated list of allowed origins (e.g. https://claude.ai)")
     .transform((s) => s.split(",").map((o) => o.trim())),
-});
+}).refine(
+  (data) => (!data.TLS_CERT_PATH && !data.TLS_KEY_PATH) || (!!data.TLS_CERT_PATH && !!data.TLS_KEY_PATH),
+  { message: "TLS_CERT_PATH and TLS_KEY_PATH must both be set or both omitted", path: ["TLS_CERT_PATH"] }
+);
 
 export type Config = z.infer<typeof configSchema>;
 
