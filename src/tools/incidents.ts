@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolContext } from "./registry.js";
+import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
   ServiceNowSingleResponse,
@@ -105,7 +106,10 @@ export function registerIncidentTools(
 
         return {
           success: true,
-          data: data.result,
+          data: data.result.map((r) => ({
+            ...r,
+            self_link: buildRecordUrl(ctx.instanceUrl, "incident", r.sys_id),
+          })),
           metadata: {
             total_count: parseInt(headers["x-total-count"] || "0", 10),
             returned_count: data.result.length,
@@ -168,7 +172,13 @@ export function registerIncidentTools(
         };
       }
 
-      return { success: true, data: result };
+      return {
+        success: true,
+        data: {
+          ...result,
+          self_link: buildRecordUrl(ctx.instanceUrl, "incident", result.sys_id),
+        },
+      };
     })
   );
 
@@ -222,7 +232,13 @@ export function registerIncidentTools(
           ServiceNowSingleResponse<Incident>
         >("/api/now/table/incident", body);
 
-        return { success: true, data: data.result };
+        return {
+          success: true,
+          data: {
+            ...data.result,
+            self_link: buildRecordUrl(ctx.instanceUrl, "incident", data.result.sys_id),
+          },
+        };
       }
     )
   );
@@ -284,7 +300,13 @@ export function registerIncidentTools(
           ServiceNowSingleResponse<Incident>
         >(`/api/now/table/incident/${sysId}`, sanitized);
 
-        return { success: true, data: data.result };
+        return {
+          success: true,
+          data: {
+            ...data.result,
+            self_link: buildRecordUrl(ctx.instanceUrl, "incident", data.result.sys_id),
+          },
+        };
       }
     )
   );
@@ -350,6 +372,7 @@ export function registerIncidentTools(
           success: true,
           data: {
             sys_id: sysId,
+            self_link: buildRecordUrl(ctx.instanceUrl, "incident", sysId),
             message: `${args.type === "work_note" ? "Work note" : "Comment"} added successfully`,
           },
         };

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ToolContext } from "../../../src/tools/registry.js";
-import { registerAllTools } from "../../../src/tools/registry.js";
+import { registerAllTools, buildRecordUrl } from "../../../src/tools/registry.js";
 
 const mocks = vi.hoisted(() => ({
   registerUserTools: vi.fn(),
@@ -236,5 +236,19 @@ describe("registerAllTools", () => {
       },
     });
     expect(mocks.handleToolError).toHaveBeenCalledWith(boom);
+  });
+});
+
+describe("buildRecordUrl", () => {
+  it("constructs a direct record URL from instance, table, and sys_id", () => {
+    expect(
+      buildRecordUrl("https://dev.service-now.com", "incident", "abc123")
+    ).toBe("https://dev.service-now.com/incident.do?sys_id=abc123");
+  });
+
+  it("handles instance URLs without trailing slash", () => {
+    expect(
+      buildRecordUrl("https://dev.service-now.com", "sys_user", "def456")
+    ).toBe("https://dev.service-now.com/sys_user.do?sys_id=def456");
   });
 });

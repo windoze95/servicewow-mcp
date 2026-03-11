@@ -16,9 +16,18 @@ import { registerUpdateSetTools } from "./updateSets.js";
 
 export interface ToolContext {
   snClient: ServiceNowClient;
+  instanceUrl: string;
   userSysId: string;
   userName: string;
   displayName: string;
+}
+
+export function buildRecordUrl(
+  instanceUrl: string,
+  table: string,
+  sysId: string
+): string {
+  return `${instanceUrl}/${table}.do?sys_id=${sysId}`;
 }
 
 export function registerAllTools(
@@ -62,6 +71,7 @@ export function registerAllTools(
 
     return {
       snClient,
+      instanceUrl: config.SERVICENOW_INSTANCE_URL,
       userSysId: token.user_sys_id,
       userName: token.user_name,
       displayName: token.display_name,

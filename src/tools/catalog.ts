@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolContext } from "./registry.js";
+import { buildRecordUrl } from "./registry.js";
 import { validateSysId } from "../utils/validators.js";
 
 type WrapHandler = <T>(
@@ -40,7 +41,12 @@ export function registerCatalogTools(
 
       return {
         success: true,
-        data: data.result,
+        data: (data.result || []).map((r: any) => ({
+          ...r,
+          ...(r.sys_id && {
+            self_link: buildRecordUrl(ctx.instanceUrl, "sc_cat_item", r.sys_id),
+          }),
+        })),
         metadata: {
           returned_count: data.result?.length || 0,
         },
@@ -70,7 +76,13 @@ export function registerCatalogTools(
         `/api/sn_sc/servicecatalog/items/${args.sys_id}`
       );
 
-      return { success: true, data: data.result };
+      const item = data.result as Record<string, unknown> | null;
+      return {
+        success: true,
+        data: item?.sys_id
+          ? { ...item, self_link: buildRecordUrl(ctx.instanceUrl, "sc_cat_item", item.sys_id as string) }
+          : item,
+      };
     })
   );
 
@@ -111,7 +123,13 @@ export function registerCatalogTools(
           body
         );
 
-        return { success: true, data: data.result };
+        const request = data.result as Record<string, unknown> | null;
+        return {
+          success: true,
+          data: request?.sys_id
+            ? { ...request, self_link: buildRecordUrl(ctx.instanceUrl, "sc_request", request.sys_id as string) }
+            : request,
+        };
       }
     )
   );
