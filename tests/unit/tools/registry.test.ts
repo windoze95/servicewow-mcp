@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   registerTaskTools: vi.fn(),
   registerCatalogTools: vi.fn(),
   registerUpdateSetTools: vi.fn(),
+  registerChangeRequestTools: vi.fn(),
   checkLimit: vi.fn(),
   ensureFreshToken: vi.fn(),
   createToolError: vi.fn(),
@@ -38,6 +39,10 @@ vi.mock("../../../src/tools/catalog.js", () => ({
 
 vi.mock("../../../src/tools/updateSets.js", () => ({
   registerUpdateSetTools: mocks.registerUpdateSetTools,
+}));
+
+vi.mock("../../../src/tools/changeRequests.js", () => ({
+  registerChangeRequestTools: mocks.registerChangeRequestTools,
 }));
 
 vi.mock("../../../src/middleware/rateLimiter.js", () => ({
@@ -126,6 +131,7 @@ describe("registerAllTools", () => {
     mocks.registerTaskTools.mockImplementation(() => {});
     mocks.registerCatalogTools.mockImplementation(() => {});
     mocks.registerUpdateSetTools.mockImplementation(() => {});
+    mocks.registerChangeRequestTools.mockImplementation(() => {});
 
     mocks.checkLimit.mockResolvedValue(true);
     mocks.ensureFreshToken.mockResolvedValue(resolvedToken);

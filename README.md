@@ -135,7 +135,7 @@ Users should have `snc_platform_rest_api_access` for REST API access. Record-lev
 
 ---
 
-## 🧰 Tools (18)
+## 🧰 Tools (24)
 
 ### Incidents
 
@@ -144,6 +144,15 @@ Users should have `snc_platform_rest_api_access` for REST API access. Record-lev
 - `create_incident`
 - `update_incident`
 - `add_work_note`
+
+### Change Requests
+
+- `search_change_requests`
+- `get_change_request`
+- `create_change_request`
+- `update_change_request`
+- `get_change_request_approvals`
+- `add_change_request_work_note`
 
 ### Users and Groups
 
@@ -181,6 +190,8 @@ Server-side protections include:
 
 - `create_incident`: caller identity is server-controlled
 - `update_incident`: protected audit/system fields are stripped
+- `create_change_request`: requester identity is server-controlled
+- `update_change_request`: protected audit/system fields are stripped
 - `submit_catalog_request`: requester identity is server-controlled
 - `approve_or_reject`: approval ownership is verified
 
