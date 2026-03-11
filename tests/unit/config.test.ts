@@ -50,6 +50,7 @@ describe("loadConfig", () => {
     process.env.SERVICENOW_CLIENT_SECRET = "client-secret";
     process.env.OAUTH_REDIRECT_URI = "http://localhost:3001/oauth/callback";
     process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 2).toString("base64");
+    process.env.ALLOWED_ORIGINS = "https://claude.ai";
 
     const { loadConfig } = await import("../../src/config.js");
     const first = loadConfig();
@@ -80,6 +81,56 @@ describe("loadConfig", () => {
     expect(() => loadConfig()).toThrow("process.exit:1");
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Configuration validation failed:")
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("fails when ALLOWED_ORIGINS is missing", async () => {
+    process.env.SERVICENOW_INSTANCE_URL = "https://example.service-now.com";
+    process.env.SERVICENOW_CLIENT_ID = "client-id";
+    process.env.SERVICENOW_CLIENT_SECRET = "client-secret";
+    process.env.OAUTH_REDIRECT_URI = "http://localhost:3001/oauth/callback";
+    process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 1).toString("base64");
+    // ALLOWED_ORIGINS is intentionally not set (deleted in beforeEach)
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(((code?: number) => {
+        throw new Error(`process.exit:${code}`);
+      }) as never);
+
+    const { loadConfig } = await import("../../src/config.js");
+
+    expect(() => loadConfig()).toThrow("process.exit:1");
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("ALLOWED_ORIGINS")
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("fails when only TLS_CERT_PATH is set without TLS_KEY_PATH", async () => {
+    process.env.SERVICENOW_INSTANCE_URL = "https://example.service-now.com";
+    process.env.SERVICENOW_CLIENT_ID = "client-id";
+    process.env.SERVICENOW_CLIENT_SECRET = "client-secret";
+    process.env.OAUTH_REDIRECT_URI = "http://localhost:3001/oauth/callback";
+    process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 1).toString("base64");
+    process.env.ALLOWED_ORIGINS = "https://claude.ai";
+    process.env.TLS_CERT_PATH = "/certs/server.crt";
+    // TLS_KEY_PATH intentionally not set
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(((code?: number) => {
+        throw new Error(`process.exit:${code}`);
+      }) as never);
+
+    const { loadConfig } = await import("../../src/config.js");
+
+    expect(() => loadConfig()).toThrow("process.exit:1");
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("TLS_CERT_PATH and TLS_KEY_PATH must both be set or both omitted")
     );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });

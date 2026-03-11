@@ -91,8 +91,24 @@ generate_env() {
     read -rp "TLS certificate path (leave empty to skip): " TLS_CERT
     read -rp "TLS private key path (leave empty to skip): " TLS_KEY
 
-    read -rp "Allowed CORS origins (comma-separated, or * for all) [*]: " CORS_ORIGINS
-    CORS_ORIGINS=${CORS_ORIGINS:-*}
+    read -rp "Allowed CORS origins (comma-separated) [https://claude.ai]: " CORS_ORIGINS
+    CORS_ORIGINS=${CORS_ORIGINS:-https://claude.ai}
+
+    echo ""
+    echo -e "${BOLD}Deployment Mode${NC}"
+    echo "---------------"
+    echo "1) Local — direct port exposure (VPN/LAN access)"
+    echo "2) Public — Caddy reverse proxy with automatic TLS"
+    read -rp "Choose deployment mode [1]: " DEPLOY_MODE
+    DEPLOY_MODE=${DEPLOY_MODE:-1}
+
+    if [ "$DEPLOY_MODE" = "2" ]; then
+        read -rp "Public domain name (e.g. mcp.example.com): " CADDY_DOMAIN
+        if [ -z "$CADDY_DOMAIN" ]; then
+            echo -e "${RED}Domain is required for public deployment.${NC}"
+            exit 1
+        fi
+    fi
 
     # Write .env file
     cat > "$ENV_FILE" <<EOF
@@ -132,6 +148,14 @@ TLS_KEY_PATH=${TLS_KEY}
 EOF
     fi
 
+    if [ "${DEPLOY_MODE:-1}" = "2" ]; then
+        cat >> "$ENV_FILE" <<EOF
+
+# Caddy
+CADDY_DOMAIN=${CADDY_DOMAIN}
+EOF
+    fi
+
     chmod 600 "$ENV_FILE"
     echo -e "${GREEN}✓ .env file generated${NC}"
 }
@@ -141,8 +165,13 @@ build_and_launch() {
     echo ""
     echo -e "${BOLD}Building and launching...${NC}"
 
-    docker compose build --no-cache
-    docker compose up -d
+    if [ "${DEPLOY_MODE:-1}" = "2" ]; then
+        docker compose -f docker-compose.yml -f docker-compose.caddy.yml build --no-cache
+        docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+    else
+        docker compose -f docker-compose.yml -f docker-compose.local.yml build --no-cache
+        docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+    fi
 
     echo -e "${GREEN}✓ Containers started${NC}"
 }
@@ -175,9 +204,15 @@ print_instructions() {
     echo -e "${BOLD}Setup Complete!${NC}"
     echo "========================================"
     echo ""
-    echo -e "${BOLD}MCP Endpoint:${NC} https://${SERVER_HOST:-localhost}:${PORT}/mcp"
-    echo -e "${BOLD}Health Check:${NC} http://localhost:${PORT}/health"
-    echo -e "${BOLD}OAuth Start:${NC}  https://${SERVER_HOST:-localhost}:${PORT}/oauth/authorize"
+    if [ "${DEPLOY_MODE:-1}" = "2" ]; then
+        echo -e "${BOLD}MCP Endpoint:${NC} https://${CADDY_DOMAIN}/mcp"
+        echo -e "${BOLD}Health Check:${NC} https://${CADDY_DOMAIN}/health"
+        echo -e "${BOLD}OAuth Start:${NC}  https://${CADDY_DOMAIN}/oauth/authorize"
+    else
+        echo -e "${BOLD}MCP Endpoint:${NC} https://${SERVER_HOST:-localhost}:${PORT}/mcp"
+        echo -e "${BOLD}Health Check:${NC} http://localhost:${PORT}/health"
+        echo -e "${BOLD}OAuth Start:${NC}  https://${SERVER_HOST:-localhost}:${PORT}/oauth/authorize"
+    fi
     echo ""
     echo -e "${BOLD}ServiceNow OAuth Application Setup:${NC}"
     echo "-----------------------------------"

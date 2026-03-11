@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { readFileSync } from "node:fs";
+import { createServer as createHttpsServer } from "node:https";
 import { loadConfig } from "./config.js";
 import { logger } from "./utils/logger.js";
 import { createApp } from "./server.js";
@@ -14,18 +16,32 @@ async function main() {
 
   const app = await createApp(config, redis);
 
-  const server = app.listen(config.MCP_PORT, () => {
-    logger.info(`ServiceNow MCP Server listening on port ${config.MCP_PORT}`);
-    logger.info(`Health check: http://localhost:${config.MCP_PORT}/health`);
-    logger.info(`MCP endpoint: http://localhost:${config.MCP_PORT}/mcp`);
+  const useTls = !!(config.TLS_CERT_PATH && config.TLS_KEY_PATH);
+  const protocol = useTls ? "https" : "http";
+
+  const server = useTls
+    ? createHttpsServer(
+        { cert: readFileSync(config.TLS_CERT_PATH!), key: readFileSync(config.TLS_KEY_PATH!) },
+        app
+      )
+    : app;
+
+  const listener = useTls
+    ? (server as import("node:https").Server).listen(config.MCP_PORT, () => logStartup())
+    : (server as ReturnType<typeof app.listen>).listen(config.MCP_PORT, () => logStartup());
+
+  function logStartup() {
+    logger.info(`ServiceNow MCP Server listening on port ${config.MCP_PORT} (${protocol})`);
+    logger.info(`Health check: ${protocol}://localhost:${config.MCP_PORT}/health`);
+    logger.info(`MCP endpoint: ${protocol}://localhost:${config.MCP_PORT}/mcp`);
     logger.info(
-      `OAuth authorize: http://localhost:${config.MCP_PORT}/oauth/authorize`
+      `OAuth authorize: ${protocol}://localhost:${config.MCP_PORT}/oauth/authorize`
     );
-  });
+  }
 
   const shutdown = async () => {
     logger.info("Shutting down...");
-    server.close();
+    listener.close();
     await redis.quit();
     process.exit(0);
   };

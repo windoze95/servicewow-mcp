@@ -1,0 +1,9 @@
+version: "3.8"
+
+# Overlay for local/VPN development — exposes the app port directly.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+
+services:
+  servicenow-mcp:
+    ports:
+      - "${MCP_PORT:-8080}:${MCP_PORT:-8080}"

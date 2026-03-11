@@ -1,0 +1,30 @@
+version: "3.8"
+
+# Overlay for public deployment with automatic TLS via Caddy.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: servicenow-mcp-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - CADDY_DOMAIN=${CADDY_DOMAIN:?CADDY_DOMAIN is required}
+      - MCP_PORT=${MCP_PORT:-8080}
+    depends_on:
+      servicenow-mcp:
+        condition: service_healthy
+    networks:
+      - mcp-internal
+
+volumes:
+  caddy-data:
+  caddy-config:

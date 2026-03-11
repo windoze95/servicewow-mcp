@@ -1,0 +1,7 @@
+{$CADDY_DOMAIN:localhost} {
+	reverse_proxy servicenow-mcp:{$MCP_PORT:8080}
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+	}
+}
