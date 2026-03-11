@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolContext } from "./registry.js";
+import { buildRecordUrl } from "./registry.js";
 import type { ServiceNowListResponse, ServiceNowSingleResponse, User, Group } from "../servicenow/types.js";
 import { buildEncodedQuery, type QueryFilter } from "../servicenow/queryBuilder.js";
 
@@ -40,7 +41,10 @@ export function registerUserTools(
 
       return {
         success: true,
-        data: data.result,
+        data: data.result.map((r) => ({
+          ...r,
+          self_link: buildRecordUrl(ctx.instanceUrl, "sys_user", r.sys_id),
+        })),
         metadata: {
           total_count: parseInt(headers["x-total-count"] || "0", 10),
           returned_count: data.result.length,
@@ -71,7 +75,10 @@ export function registerUserTools(
 
       return {
         success: true,
-        data: data.result,
+        data: data.result.map((r) => ({
+          ...r,
+          self_link: buildRecordUrl(ctx.instanceUrl, "sys_user_group", r.sys_id),
+        })),
         metadata: {
           total_count: parseInt(headers["x-total-count"] || "0", 10),
           returned_count: data.result.length,
@@ -97,7 +104,10 @@ export function registerUserTools(
 
       return {
         success: true,
-        data: data.result,
+        data: {
+          ...data.result,
+          self_link: buildRecordUrl(ctx.instanceUrl, "sys_user", data.result.sys_id),
+        },
       };
     })
   );

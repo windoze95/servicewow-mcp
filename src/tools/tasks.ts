@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolContext } from "./registry.js";
+import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
   ServiceNowSingleResponse,
@@ -49,7 +50,14 @@ export function registerTaskTools(
 
       return {
         success: true,
-        data: data.result,
+        data: data.result.map((r) => ({
+          ...r,
+          self_link: buildRecordUrl(
+            ctx.instanceUrl,
+            r.sys_class_name || "task",
+            r.sys_id
+          ),
+        })),
         metadata: {
           total_count: parseInt(headers["x-total-count"] || "0", 10),
           returned_count: data.result.length,
@@ -86,7 +94,10 @@ export function registerTaskTools(
 
       return {
         success: true,
-        data: data.result,
+        data: data.result.map((r) => ({
+          ...r,
+          self_link: buildRecordUrl(ctx.instanceUrl, "sysapproval_approver", r.sys_id),
+        })),
         metadata: {
           total_count: parseInt(headers["x-total-count"] || "0", 10),
           returned_count: data.result.length,
@@ -149,7 +160,10 @@ export function registerTaskTools(
 
         return {
           success: true,
-          data: data.result,
+          data: {
+            ...data.result,
+            self_link: buildRecordUrl(ctx.instanceUrl, "sysapproval_approver", data.result.sys_id),
+          },
           message: `Approval ${args.action} successfully`,
         };
       }

@@ -31,6 +31,7 @@ describe("registerTaskTools", () => {
 
     const ctx: ToolContext = {
       snClient: snClient as unknown as ToolContext["snClient"],
+      instanceUrl: "https://example.service-now.com",
       userSysId,
       userName: "john.doe",
       displayName: "John Doe",
@@ -139,6 +140,7 @@ describe("registerTaskTools", () => {
         sys_id: approvalId,
         state: "approved",
         comments: "LGTM",
+        self_link: `https://example.service-now.com/sysapproval_approver.do?sys_id=${approvalId}`,
       },
       message: "Approval approved successfully",
     });

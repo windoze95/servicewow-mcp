@@ -31,6 +31,7 @@ describe("registerUpdateSetTools", () => {
 
     const ctx: ToolContext = {
       snClient: snClient as unknown as ToolContext["snClient"],
+      instanceUrl: "https://example.service-now.com",
       userSysId,
       userName: "john.doe",
       displayName: "John Doe",
@@ -223,6 +224,7 @@ describe("registerUpdateSetTools", () => {
           sys_id: "newset1234567890abcdef1234567890ab",
           name: "New Set",
           state: "in progress",
+          self_link: "https://example.service-now.com/sys_update_set.do?sys_id=newset1234567890abcdef1234567890ab",
         },
         set_as_current: false,
       },

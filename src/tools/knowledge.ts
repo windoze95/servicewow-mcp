@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolContext } from "./registry.js";
+import { buildRecordUrl } from "./registry.js";
 import { validateSysId } from "../utils/validators.js";
 
 type WrapHandler = <T>(
@@ -41,7 +42,12 @@ export function registerKnowledgeTools(
 
       return {
         success: true,
-        data: data.result,
+        data: (data.result || []).map((r: any) => ({
+          ...r,
+          ...(r.sys_id && {
+            self_link: buildRecordUrl(ctx.instanceUrl, "kb_knowledge", r.sys_id),
+          }),
+        })),
         metadata: {
           total_count: parseInt(headers["x-total-count"] || "0", 10),
           returned_count: data.result?.length || 0,
@@ -72,7 +78,13 @@ export function registerKnowledgeTools(
         `/api/sn_km/knowledge/articles/${args.sys_id}`
       );
 
-      return { success: true, data: data.result };
+      const article = data.result as Record<string, unknown> | null;
+      return {
+        success: true,
+        data: article?.sys_id
+          ? { ...article, self_link: buildRecordUrl(ctx.instanceUrl, "kb_knowledge", article.sys_id as string) }
+          : article,
+      };
     })
   );
 }

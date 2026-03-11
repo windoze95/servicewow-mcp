@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolContext } from "./registry.js";
+import { buildRecordUrl } from "./registry.js";
 import type { ServiceNowListResponse, ServiceNowSingleResponse } from "../servicenow/types.js";
 import { validateSysId } from "../utils/validators.js";
 
@@ -119,6 +120,7 @@ export function registerUpdateSetTools(
             name: targetUpdateSet.name,
             state: targetUpdateSet.state,
             application: targetUpdateSet.application,
+            self_link: buildRecordUrl(ctx.instanceUrl, "sys_update_set", targetUpdateSet.sys_id),
           },
         },
       };
@@ -190,6 +192,7 @@ export function registerUpdateSetTools(
               sys_id: newUpdateSet.sys_id,
               name: newUpdateSet.name,
               state: newUpdateSet.state,
+              self_link: buildRecordUrl(ctx.instanceUrl, "sys_update_set", newUpdateSet.sys_id),
             },
             set_as_current: args.set_as_current,
           },
