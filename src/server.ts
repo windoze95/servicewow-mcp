@@ -5,8 +5,11 @@ import { randomUUID } from "node:crypto";
 import type { Redis } from "ioredis";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 import { type Config } from "./config.js";
-import { TokenStore, RECONNECT_SESSION_TTL } from "./auth/tokenStore.js";
+import { TokenStore } from "./auth/tokenStore.js";
+import { ServiceNowOAuthProvider } from "./auth/oauthProvider.js";
 import { createOAuthRouter } from "./auth/oauth.js";
 import { registerAllTools } from "./tools/registry.js";
 import { logger } from "./utils/logger.js";
@@ -24,6 +27,9 @@ export async function createApp(
   const app = express();
   const tokenStore = new TokenStore(redis, config.TOKEN_ENCRYPTION_KEY);
 
+  // OAuth provider for MCP SDK auth
+  const oauthProvider = new ServiceNowOAuthProvider(config, tokenStore);
+
   // Middleware
   app.use(helmet());
   app.use(
@@ -35,7 +41,7 @@ export async function createApp(
     })
   );
 
-  // Health endpoint
+  // Health endpoint (before auth middleware)
   app.get("/health", async (_req: Request, res: Response) => {
     try {
       await redis.ping();
@@ -54,13 +60,24 @@ export async function createApp(
     }
   });
 
-  // OAuth routes
+  // MCP SDK OAuth routes (/.well-known/*, /authorize, /token, /register, /revoke)
+  app.use(
+    mcpAuthRouter({
+      provider: oauthProvider,
+      issuerUrl: new URL(config.MCP_SERVER_URL),
+    })
+  );
+
+  // Legacy OAuth routes (deprecated — kept for backward compat)
   app.use("/oauth", createOAuthRouter(config, tokenStore));
+
+  // Bearer auth middleware for MCP routes
+  const bearerAuth = requireBearerAuth({ verifier: oauthProvider });
 
   // Per-session MCP server + transport storage
   const sessions = new Map<string, SessionEntry>();
 
-  function createMcpSession(reconnectUserSysId?: string): SessionEntry {
+  function createMcpSession(): SessionEntry {
     let resolvedSessionId: string | undefined;
 
     const server = new McpServer({
@@ -73,16 +90,7 @@ export async function createApp(
       onsessioninitialized: async (sessionId: string) => {
         resolvedSessionId = sessionId;
         sessions.set(sessionId, entry);
-        if (reconnectUserSysId) {
-          await tokenStore.storeSessionMappingWithTTL(
-            sessionId,
-            reconnectUserSysId,
-            RECONNECT_SESSION_TTL
-          );
-          logger.info({ sessionId }, "MCP session initialized via reconnect token");
-        } else {
-          logger.info({ sessionId }, "MCP session initialized");
-        }
+        logger.info({ sessionId }, "MCP session initialized");
       },
     });
 
@@ -112,8 +120,8 @@ export async function createApp(
     return entry;
   }
 
-  // POST /mcp — handles initialize + tool calls
-  app.post("/mcp", async (req: Request, res: Response) => {
+  // POST /mcp — handles initialize + tool calls (bearer auth required)
+  app.post("/mcp", bearerAuth, async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (sessionId && sessions.has(sessionId)) {
@@ -123,33 +131,8 @@ export async function createApp(
       return;
     }
 
-    // No session or unknown session — this should be an initialize request
-    // Check for reconnect token in query string
-    let reconnectUserSysId: string | undefined;
-    const reconnectToken = req.query.token as string | undefined;
-    if (reconnectToken) {
-      try {
-        const userSysId = await tokenStore.getUserForReconnectToken(reconnectToken);
-        if (userSysId) {
-          // Verify the user still has valid OAuth credentials
-          const creds = await tokenStore.getToken(userSysId);
-          if (creds) {
-            reconnectUserSysId = userSysId;
-            await tokenStore.refreshReconnectTokenTTL(
-              reconnectToken,
-              userSysId,
-              config.RECONNECT_TOKEN_TTL
-            );
-            logger.info("Session auto-mapped via reconnect token");
-          }
-        }
-      } catch (err) {
-        // Silently fall through — user can still authenticate via OAuth
-        logger.warn({ err }, "Reconnect token lookup failed");
-      }
-    }
-
-    const entry = createMcpSession(reconnectUserSysId);
+    // No session or unknown session — create new session
+    const entry = createMcpSession();
 
     // Connect server to transport
     await entry.server.connect(entry.transport);
@@ -158,7 +141,7 @@ export async function createApp(
   });
 
   // GET /mcp — SSE stream for notifications (Streamable HTTP spec)
-  app.get("/mcp", async (req: Request, res: Response) => {
+  app.get("/mcp", bearerAuth, async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (!sessionId || !sessions.has(sessionId)) {
@@ -171,7 +154,7 @@ export async function createApp(
   });
 
   // DELETE /mcp — close session
-  app.delete("/mcp", async (req: Request, res: Response) => {
+  app.delete("/mcp", bearerAuth, async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (!sessionId || !sessions.has(sessionId)) {

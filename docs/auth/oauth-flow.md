@@ -2,88 +2,103 @@
 
 # OAuth Flow
 
-The server implements the **OAuth 2.0 Authorization Code** grant type with ServiceNow as the authorization server.
+The server acts as an **OAuth authorization server** (per the MCP spec) and delegates user authentication to ServiceNow. MCP clients use standard OAuth 2.0 with PKCE to obtain bearer tokens.
 
-## Flow Diagram
+## Flow Diagram (SDK OAuth)
 
 ```mermaid
 sequenceDiagram
-    participant U as User/Browser
+    participant C as MCP Client
     participant S as MCP Server
     participant R as Redis
     participant SN as ServiceNow
 
-    U->>S: GET /oauth/authorize?session_id=abc
-    S->>R: storeOAuthState(state, { sessionId })
-    S-->>U: 302 Redirect → SN /oauth_auth.do
+    C->>S: POST /register (dynamic client registration)
+    S->>R: storeOAuthClient(clientId, clientInfo)
+    S-->>C: { client_id, client_secret }
 
-    U->>SN: Login + Authorize
-    SN-->>U: 302 Redirect → /oauth/callback?code=xyz&state=...
+    C->>S: GET /authorize (code_challenge, redirect_uri, state)
+    S->>R: storePendingAuth + storeSnState
+    S-->>C: 302 Redirect → SN /oauth_auth.do
 
-    U->>S: GET /oauth/callback?code=xyz&state=...
-    S->>R: getOAuthState(state) → { sessionId }
-    S->>SN: POST /oauth_token.do (code exchange)
-    SN-->>S: { access_token, refresh_token, expires_in }
+    C->>SN: User login + consent
+    SN-->>S: 302 → /oauth/sn-callback?code=sn_code&state=sn_state
 
-    S->>SN: GET /api/now/table/sys_user (gs.getUserName())
-    SN-->>S: { sys_id, user_name, name }
+    S->>R: getSnState → pendingAuthId
+    S->>SN: POST /oauth_token.do (exchange SN code)
+    SN-->>S: { access_token, refresh_token }
+    S->>SN: GET /api/now/table/sys_user (resolve identity)
+    S->>R: storeToken (encrypted SN credentials)
+    S->>R: storeAuthCode (our auth code → userSysId)
+    S-->>C: 302 → client redirect_uri?code=our_code&state=client_state
 
-    S->>R: storeToken(encrypted StoredToken)
-    S->>R: storeSessionMapping(sessionId, userSysId)
-    S-->>U: 200 { success: true, user: {...} }
+    C->>S: POST /token (code, code_verifier)
+    S->>R: getAuthCode, verify PKCE
+    S->>R: storeMcpToken + storeMcpRefreshToken
+    S-->>C: { access_token, refresh_token, token_type: "Bearer" }
+
+    C->>S: POST /mcp (Authorization: Bearer token)
+    S->>R: getMcpToken → { userSysId }
+    S->>R: getToken(userSysId) → SN credentials
+    S->>SN: API call with user's SN access token
 ```
 
 ## Step-by-Step
 
-### 1. Authorize (`GET /oauth/authorize`)
+### 1. Client Registration (`POST /register`)
 
-Generates a cryptographically random 32-byte state parameter for CSRF protection, stores it in Redis (10-minute TTL), and redirects the user to ServiceNow's OAuth authorization endpoint.
+MCP clients register dynamically via RFC 7591. The server generates a `client_id` (UUID) and `client_secret` (32-byte hex), stores them in Redis (90-day TTL).
 
-**Query parameters**:
-- `session_id` (optional) — the MCP session ID to map after successful auth
+### 2. Authorization (`GET /authorize`)
 
-**Redirect URL**: `{SERVICENOW_INSTANCE_URL}/oauth_auth.do?response_type=code&client_id=...&redirect_uri=...&state=...`
+The SDK's authorization handler validates the request (PKCE `code_challenge`, `redirect_uri`, `state`), then calls our `OAuthServerProvider.authorize()`:
 
-### 2. Callback (`GET /oauth/callback`)
+1. Generates a `pending_auth` ID, stores client params in Redis (10-min TTL)
+2. Generates a CSRF `sn_state`, stores in Redis (10-min TTL)
+3. Redirects user to ServiceNow's `/oauth_auth.do`
 
-Receives the authorization code from ServiceNow after user consent.
+### 3. ServiceNow Callback (`GET /oauth/sn-callback`)
 
-**Validation**:
-1. Checks for OAuth errors from ServiceNow
-2. Verifies `code` and `state` parameters are present
-3. Validates state against Redis (one-time use — deleted on read)
+After the user authorizes on ServiceNow:
 
-**Token exchange**: POSTs to `{SERVICENOW_INSTANCE_URL}/oauth_token.do` with:
-- `grant_type=authorization_code`
-- `code`, `redirect_uri`, `client_id`, `client_secret`
+1. Validates `sn_state` against Redis (one-time use)
+2. Exchanges SN authorization code for SN tokens
+3. Resolves user identity via `gs.getUserName()` query
+4. Stores encrypted SN token in Redis
+5. Generates our authorization code (32-byte hex), stores in Redis (5-min TTL)
+6. Redirects back to the MCP client's `redirect_uri` with our code and original state
 
-**User resolution**: After obtaining tokens, queries `sys_user` with `gs.getUserName()` to determine the token owner's `sys_id`, `user_name`, and display name.
+### 4. Token Exchange (`POST /token`)
 
-**Storage**:
-- Encrypts and stores the `StoredToken` in Redis (see [Token Storage](./token-storage.md))
-- Maps the session to the user if `session_id` was provided
+The SDK's token handler validates the request, verifies PKCE, then calls `exchangeAuthorizationCode()`:
 
-### 3. Tool Calls Use the Token
+1. Looks up and consumes the authorization code (one-time use)
+2. Generates opaque MCP access token (1-hour TTL) and refresh token (30-day TTL)
+3. Returns `{ access_token, token_type: "Bearer", expires_in, refresh_token }`
 
-When a tool executes, `getContext()` resolves `session → user → token → ServiceNowClient`. See [Request Flow](../architecture/request-flow.md).
+### 5. Bearer Auth on `/mcp`
 
-## CSRF Protection
+Every `/mcp` request requires `Authorization: Bearer <token>`. The `requireBearerAuth` middleware calls `verifyAccessToken()`, which looks up the MCP token in Redis and returns `AuthInfo` with `extra.userSysId`. Tool handlers use this to resolve the user's SN credentials.
 
-The `state` parameter prevents cross-site request forgery:
+### 6. Token Refresh (`POST /token` with `grant_type=refresh_token`)
 
-- Generated with `crypto.randomBytes(32).toString("hex")` (256-bit entropy)
-- Stored in Redis with a 10-minute TTL (`oauth_state:<state>`)
-- Consumed on first read (one-time use)
-- If the state doesn't match, the callback returns `INVALID_STATE`
+When the MCP access token expires, the client uses the refresh token to get a new one. The server verifies the user still has valid SN credentials before issuing a new MCP token.
+
+## Legacy Flow (Deprecated)
+
+The previous `GET /oauth/authorize` → `GET /oauth/callback` → session mapping flow is still functional but deprecated. It logs warnings and will be removed in a future release.
 
 ## Error Cases
 
 | Error | Cause |
 |---|---|
-| `OAUTH_ERROR` | ServiceNow returned an error in the callback |
+| `SN_OAUTH_ERROR` | ServiceNow returned an error in the sn-callback |
 | `INVALID_CALLBACK` | Missing `code` or `state` parameter |
-| `INVALID_STATE` | State not found in Redis (expired or tampered) |
-| `TOKEN_EXCHANGE_FAILED` | Code exchange with ServiceNow failed (wrong credentials, expired code, redirect URI mismatch) |
+| `INVALID_STATE` | SN state not found in Redis (expired or tampered) |
+| `EXPIRED_AUTH` | Pending authorization expired before SN callback |
+| `TOKEN_EXCHANGE_FAILED` | SN code exchange failed |
+| `invalid_grant` | Authorization code or refresh token invalid/expired |
+| `invalid_token` | MCP access token invalid or expired |
 
 ---
 

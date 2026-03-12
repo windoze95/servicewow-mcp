@@ -105,7 +105,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>;
+) => (args: T, extra?: { authInfo?: { token: string; clientId: string; scopes: string[]; extra?: Record<string, unknown> } }) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>;
 
 describe("registerAllTools", () => {
   const tokenStore = {
@@ -168,9 +168,7 @@ describe("registerAllTools", () => {
     });
   });
 
-  it("returns AUTH_REQUIRED with auth_url when session has no user mapping", async () => {
-    tokenStore.getUserForSession.mockResolvedValue(null);
-
+  it("returns AUTH_REQUIRED with auth_url when no authInfo is present", async () => {
     registerAllTools(
       {} as any,
       () => "session-123",
@@ -193,9 +191,38 @@ describe("registerAllTools", () => {
     );
   });
 
-  it("passes through known toolError payloads from handlers", async () => {
-    tokenStore.getUserForSession.mockResolvedValue("abc123def456abc123def456abc12345");
+  it("resolves user from authInfo when bearer auth is present", async () => {
+    registerAllTools(
+      {} as any,
+      () => undefined, // no session
+      config as any,
+      {} as any,
+      tokenStore as any
+    );
 
+    const handler = vi.fn(async (_ctx: ToolContext) => ({ success: true }));
+    const wrapped = capturedWrap(handler);
+
+    const extra = {
+      authInfo: {
+        token: "mcp-token-123",
+        clientId: "client-1",
+        scopes: [],
+        extra: { userSysId: "abc123def456abc123def456abc12345" },
+      },
+    };
+
+    const response = await wrapped({} as Record<string, never>, extra);
+
+    expect(handler).toHaveBeenCalled();
+    expect(response.isError).toBeUndefined();
+    const parsed = JSON.parse(response.content[0].text);
+    expect(parsed.success).toBe(true);
+    // Should not have tried session lookup
+    expect(tokenStore.getUserForSession).not.toHaveBeenCalled();
+  });
+
+  it("passes through known toolError payloads from handlers", async () => {
     registerAllTools(
       {} as any,
       () => "session-123",
@@ -219,7 +246,16 @@ describe("registerAllTools", () => {
       });
     });
 
-    const response = await wrapped({} as Record<string, never>);
+    const extra = {
+      authInfo: {
+        token: "mcp-token-123",
+        clientId: "client-1",
+        scopes: [] as string[],
+        extra: { userSysId: "abc123def456abc123def456abc12345" },
+      },
+    };
+
+    const response = await wrapped({} as Record<string, never>, extra);
 
     expect(response.isError).toBe(true);
     expect(JSON.parse(response.content[0].text)).toEqual(knownToolError);
@@ -227,8 +263,6 @@ describe("registerAllTools", () => {
   });
 
   it("normalizes unexpected errors using handleToolError", async () => {
-    tokenStore.getUserForSession.mockResolvedValue("abc123def456abc123def456abc12345");
-
     registerAllTools(
       {} as any,
       () => "session-123",
@@ -242,7 +276,16 @@ describe("registerAllTools", () => {
       throw boom;
     });
 
-    const response = await wrapped({} as Record<string, never>);
+    const extra = {
+      authInfo: {
+        token: "mcp-token-123",
+        clientId: "client-1",
+        scopes: [] as string[],
+        extra: { userSysId: "abc123def456abc123def456abc12345" },
+      },
+    };
+
+    const response = await wrapped({} as Record<string, never>, extra);
 
     expect(response.isError).toBe(true);
     expect(JSON.parse(response.content[0].text)).toEqual({

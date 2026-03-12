@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 const mockRedis = {
   set: vi.fn().mockResolvedValue("OK"),
   get: vi.fn().mockResolvedValue(null),
+  getdel: vi.fn().mockResolvedValue(null),
   del: vi.fn().mockResolvedValue(1),
 };
 
@@ -88,7 +89,7 @@ describe("TokenStore", () => {
     expect(userId).toBe("user-456");
   });
 
-  it("should store and retrieve OAuth state (one-time use)", async () => {
+  it("should store and atomically consume OAuth state (one-time use)", async () => {
     let storedValue: string | null = null;
     mockRedis.set.mockImplementation(
       async (_key: string, value: string) => {
@@ -96,12 +97,11 @@ describe("TokenStore", () => {
         return "OK";
       }
     );
-    mockRedis.get.mockImplementation(async () => {
+    mockRedis.getdel.mockImplementation(async () => {
       const val = storedValue;
-      storedValue = null; // Simulate one-time use
+      storedValue = null; // Atomic get-and-delete
       return val;
     });
-    mockRedis.del.mockResolvedValue(1);
 
     const stateData = { sessionId: "sess-1" };
     await store.storeOAuthState("state-abc", stateData);
