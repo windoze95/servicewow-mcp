@@ -135,7 +135,7 @@ Users should have `snc_platform_rest_api_access` for REST API access. Record-lev
 
 ---
 
-## 🧰 Tools (24)
+## 🧰 Tools (35)
 
 ### Incidents
 
@@ -181,6 +181,33 @@ Users should have `snc_platform_rest_api_access` for REST API access. Record-lev
 - `search_catalog_items`
 - `get_catalog_item`
 - `submit_catalog_request`
+
+### Catalog Administration
+
+- `create_catalog_item`
+- `update_catalog_item`
+- `create_catalog_variable`
+- `update_catalog_variable`
+- `list_catalog_variables`
+- `create_variable_choice`
+- `create_variable_set`
+- `attach_variable_set`
+- `create_catalog_client_script`
+- `create_catalog_ui_policy`
+- `create_catalog_ui_policy_action`
+
+---
+
+## 💬 Prompts (4)
+
+### Catalog Administration Guides
+
+- `build_catalog_form` — End-to-end guide for creating a catalog item with variables, choices, and layout
+- `configure_catalog_ui_policy` — Guide for setting up UI policies and field-level actions
+- `configure_catalog_client_script` — Guide for onChange/onLoad/onSubmit client scripts
+- `build_catalog_variable_set` — Guide for creating and attaching reusable variable sets
+
+See [`src/prompts/`](./src/prompts/) for the full reference content.
 
 ---
 
