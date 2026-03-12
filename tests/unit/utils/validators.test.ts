@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   validateSysId,
   validateIncidentNumber,
+  validateChangeNumber,
   validateIOVariable,
   validateState,
   validatePriority,
@@ -39,6 +40,22 @@ describe("validators", () => {
       expect(validateIncidentNumber("INC123")).toBe(false); // too few digits
       expect(validateIncidentNumber("CHG0012345")).toBe(false);
       expect(validateIncidentNumber("inc0012345")).toBe(false); // lowercase
+    });
+  });
+
+  describe("validateChangeNumber", () => {
+    it("should accept valid change numbers", () => {
+      expect(validateChangeNumber("CHG0012345")).toBe(true);
+      expect(validateChangeNumber("CHG0000001")).toBe(true);
+      expect(validateChangeNumber("CHG12345678")).toBe(true);
+    });
+
+    it("should reject invalid change numbers", () => {
+      expect(validateChangeNumber("")).toBe(false);
+      expect(validateChangeNumber("CHG")).toBe(false);
+      expect(validateChangeNumber("CHG123")).toBe(false);
+      expect(validateChangeNumber("INC0012345")).toBe(false);
+      expect(validateChangeNumber("chg0012345")).toBe(false);
     });
   });
 
@@ -103,6 +120,19 @@ describe("validators", () => {
       expect(sanitized).toEqual({
         short_description: "kept",
         state: "kept",
+      });
+    });
+
+    it("should strip identity fields (caller_id, requested_by)", () => {
+      const payload = {
+        caller_id: "attacker_sys_id",
+        requested_by: "attacker_sys_id",
+        short_description: "kept",
+      };
+
+      const sanitized = sanitizeUpdatePayload(payload);
+      expect(sanitized).toEqual({
+        short_description: "kept",
       });
     });
 

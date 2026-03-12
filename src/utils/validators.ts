@@ -53,6 +53,9 @@ export const READONLY_FIELDS = new Set([
   "number",
   "opened_at",
   "opened_by",
+  // Identity fields — server-controlled at creation, must not be overwritten
+  "caller_id",
+  "requested_by",
 ]);
 
 export function sanitizeUpdatePayload(
