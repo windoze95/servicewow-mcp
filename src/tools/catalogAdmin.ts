@@ -245,6 +245,17 @@ export function registerCatalogAdminTools(
           };
         }
 
+        if (args.validate_regex && !validateSysId(args.validate_regex)) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "Invalid validate_regex sys_id format. Must be a 32-character hex string (question_regex record).",
+            },
+          };
+        }
+
         const body: Record<string, unknown> = {
           cat_item: args.cat_item,
           name: args.name,

@@ -263,6 +263,23 @@ describe("registerCatalogAdminTools", () => {
     expect(snClient.post).not.toHaveBeenCalled();
   });
 
+  it("create_catalog_variable returns VALIDATION_ERROR for invalid validate_regex", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.create_catalog_variable({
+      cat_item: validSysId,
+      name: "server_count",
+      question_text: "Number of Servers",
+      type: "single_line_text",
+      validate_regex: "not-a-sys-id",
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("validate_regex");
+    expect(snClient.post).not.toHaveBeenCalled();
+  });
+
   it("create_catalog_variable includes validate_regex when provided", async () => {
     const { handlers, snClient } = setup();
     const regexSysId = "aabbccddaabbccddaabbccddaabbccdd";
