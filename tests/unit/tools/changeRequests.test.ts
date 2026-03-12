@@ -376,13 +376,13 @@ describe("registerChangeRequestTools", () => {
 
     const result = (await handlers.get_change_request_approvals({
       identifier: chgSysId,
-      limit: 20,
     })) as any;
 
     expect(snClient.get).toHaveBeenCalledWith("/api/now/table/sysapproval_approver", {
       params: {
         sysparm_query: `sysapproval=${chgSysId}`,
-        sysparm_limit: 20,
+        sysparm_limit: 100,
+        sysparm_offset: 0,
         sysparm_fields:
           "sys_id,state,approver,sysapproval,source_table,comments,due_date,sys_created_on,sys_updated_on",
       },
@@ -410,7 +410,6 @@ describe("registerChangeRequestTools", () => {
 
     const result = (await handlers.get_change_request_approvals({
       identifier: "CHG0010001",
-      limit: 20,
     })) as any;
 
     expect(snClient.get).toHaveBeenCalledTimes(2);
@@ -425,7 +424,6 @@ describe("registerChangeRequestTools", () => {
 
     const result = (await handlers.get_change_request_approvals({
       identifier: "CHG9999999",
-      limit: 20,
     })) as any;
 
     expect(result.success).toBe(false);

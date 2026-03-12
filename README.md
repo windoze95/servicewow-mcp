@@ -64,7 +64,8 @@ Comprehensive documentation lives in [`docs/`](./docs/README.md):
 - **[Authentication](./docs/auth/README.md)** — OAuth flow, token storage, refresh
 - **[Security](./docs/security/README.md)** — Identity enforcement, input validation, rate limiting, error handling
 - **[Tools (35)](./docs/tools/README.md)** — All tools: incidents, change requests, knowledge, update sets, and more
-- **[Prompts (4)](./docs/prompts/README.md)** — Guided workflows for catalog administration
+- **[Resources (5)](./docs/resources/README.md)** — MCP resources for direct record access
+- **[Prompts (7)](./docs/prompts/README.md)** — Guided workflows for incidents, change requests, knowledge, and catalog
 - **[HTTP API](./docs/api/README.md)** — Endpoints and client configuration
 - **[Deployment](./docs/deployment/README.md)** — Docker, Caddy, native TLS, setup script, environment variables
 - **[Development](./docs/development/README.md)** — Adding tools, testing, CI pipeline

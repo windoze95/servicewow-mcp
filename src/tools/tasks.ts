@@ -9,6 +9,7 @@ import type {
   Approval,
 } from "../servicenow/types.js";
 import { validateSysId } from "../utils/validators.js";
+import { paginateAll } from "../servicenow/paginator.js";
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -25,43 +26,38 @@ export function registerTaskTools(
   server.tool(
     "get_my_tasks",
     "Get all open tasks assigned to the authenticated user across all task types (incidents, requests, changes, etc.).",
-    {
-      limit: z
-        .number()
-        .int()
-        .min(1)
-        .max(100)
-        .default(20)
-        .describe("Maximum results"),
-      offset: z.number().int().min(0).default(0).describe("Result offset"),
-    },
-    wrapHandler(async (ctx: ToolContext, args: { limit: number; offset: number }) => {
-      const { data, headers } = await ctx.snClient.get<
-        ServiceNowListResponse<Task>
-      >("/api/now/table/task", {
-        params: {
-          sysparm_query: `assigned_to=${ctx.userSysId}^active=true^ORDERBYDESCsys_updated_on`,
-          sysparm_limit: args.limit,
-          sysparm_offset: args.offset,
-          sysparm_fields:
-            "sys_id,number,short_description,state,priority,assigned_to,assignment_group,sys_class_name,opened_at,due_date,sys_updated_on",
+    {},
+    wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
+      const results = await paginateAll<Task>(
+        async (limit, offset) => {
+          const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Task>>(
+            "/api/now/table/task",
+            {
+              params: {
+                sysparm_query: `assigned_to=${ctx.userSysId}^active=true^ORDERBYDESCsys_updated_on`,
+                sysparm_limit: limit,
+                sysparm_offset: offset,
+                sysparm_fields:
+                  "sys_id,number,short_description,state,priority,assigned_to,assignment_group,sys_class_name,opened_at,due_date,sys_updated_on",
+              },
+            }
+          );
+          return {
+            results: data.result,
+            totalCount: parseInt(headers["x-total-count"] || "0", 10),
+          };
         },
-      });
+        { limit: 100, maxPages: 5 }
+      );
 
       return {
         success: true,
-        data: data.result.map((r) => ({
+        data: results.map((r) => ({
           ...r,
-          self_link: buildRecordUrl(
-            ctx.instanceUrl,
-            r.sys_class_name || "task",
-            r.sys_id
-          ),
+          self_link: buildRecordUrl(ctx.instanceUrl, r.sys_class_name || "task", r.sys_id),
         })),
         metadata: {
-          total_count: parseInt(headers["x-total-count"] || "0", 10),
-          returned_count: data.result.length,
-          offset: args.offset,
+          total_count: results.length,
         },
       };
     })
@@ -71,36 +67,38 @@ export function registerTaskTools(
   server.tool(
     "get_my_approvals",
     "Get pending approvals for the authenticated user.",
-    {
-      limit: z
-        .number()
-        .int()
-        .min(1)
-        .max(100)
-        .default(20)
-        .describe("Maximum results"),
-    },
-    wrapHandler(async (ctx: ToolContext, args: { limit: number }) => {
-      const { data, headers } = await ctx.snClient.get<
-        ServiceNowListResponse<Approval>
-      >("/api/now/table/sysapproval_approver", {
-        params: {
-          sysparm_query: `approver=${ctx.userSysId}^state=requested^ORDERBYDESCsys_created_on`,
-          sysparm_limit: args.limit,
-          sysparm_fields:
-            "sys_id,state,approver,sysapproval,source_table,comments,due_date,sys_created_on",
+    {},
+    wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
+      const results = await paginateAll<Approval>(
+        async (limit, offset) => {
+          const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Approval>>(
+            "/api/now/table/sysapproval_approver",
+            {
+              params: {
+                sysparm_query: `approver=${ctx.userSysId}^state=requested^ORDERBYDESCsys_created_on`,
+                sysparm_limit: limit,
+                sysparm_offset: offset,
+                sysparm_fields:
+                  "sys_id,state,approver,sysapproval,source_table,comments,due_date,sys_created_on",
+              },
+            }
+          );
+          return {
+            results: data.result,
+            totalCount: parseInt(headers["x-total-count"] || "0", 10),
+          };
         },
-      });
+        { limit: 100, maxPages: 5 }
+      );
 
       return {
         success: true,
-        data: data.result.map((r) => ({
+        data: results.map((r) => ({
           ...r,
           self_link: buildRecordUrl(ctx.instanceUrl, "sysapproval_approver", r.sys_id),
         })),
         metadata: {
-          total_count: parseInt(headers["x-total-count"] || "0", 10),
-          returned_count: data.result.length,
+          total_count: results.length,
         },
       };
     })

@@ -154,24 +154,19 @@ describe("registerTaskTools", () => {
       headers: { "x-total-count": "1" },
     });
 
-    const result = (await handlers.get_my_tasks({
-      limit: 25,
-      offset: 5,
-    })) as any;
+    const result = (await handlers.get_my_tasks({})) as any;
 
     expect(snClient.get).toHaveBeenCalledWith("/api/now/table/task", {
       params: {
         sysparm_query: `assigned_to=${userSysId}^active=true^ORDERBYDESCsys_updated_on`,
-        sysparm_limit: 25,
-        sysparm_offset: 5,
+        sysparm_limit: 100,
+        sysparm_offset: 0,
         sysparm_fields:
           "sys_id,number,short_description,state,priority,assigned_to,assignment_group,sys_class_name,opened_at,due_date,sys_updated_on",
       },
     });
     expect(result.metadata).toEqual({
       total_count: 1,
-      returned_count: 1,
-      offset: 5,
     });
   });
 });

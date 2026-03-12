@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   registerChangeRequestTools: vi.fn(),
   registerCatalogAdminTools: vi.fn(),
   registerCatalogPrompts: vi.fn(),
+  registerIncidentPrompts: vi.fn(),
+  registerChangeRequestPrompts: vi.fn(),
+  registerKnowledgePrompts: vi.fn(),
+  registerResources: vi.fn(),
   checkLimit: vi.fn(),
   ensureFreshToken: vi.fn(),
   createToolError: vi.fn(),
@@ -53,6 +57,22 @@ vi.mock("../../../src/tools/catalogAdmin.js", () => ({
 
 vi.mock("../../../src/prompts/catalog.js", () => ({
   registerCatalogPrompts: mocks.registerCatalogPrompts,
+}));
+
+vi.mock("../../../src/prompts/incidents.js", () => ({
+  registerIncidentPrompts: mocks.registerIncidentPrompts,
+}));
+
+vi.mock("../../../src/prompts/changeRequests.js", () => ({
+  registerChangeRequestPrompts: mocks.registerChangeRequestPrompts,
+}));
+
+vi.mock("../../../src/prompts/knowledge.js", () => ({
+  registerKnowledgePrompts: mocks.registerKnowledgePrompts,
+}));
+
+vi.mock("../../../src/resources/servicenow.js", () => ({
+  registerResources: mocks.registerResources,
 }));
 
 vi.mock("../../../src/middleware/rateLimiter.js", () => ({
@@ -141,6 +161,10 @@ describe("registerAllTools", () => {
     mocks.registerChangeRequestTools.mockImplementation(() => {});
     mocks.registerCatalogAdminTools.mockImplementation(() => {});
     mocks.registerCatalogPrompts.mockImplementation(() => {});
+    mocks.registerIncidentPrompts.mockImplementation(() => {});
+    mocks.registerChangeRequestPrompts.mockImplementation(() => {});
+    mocks.registerKnowledgePrompts.mockImplementation(() => {});
+    mocks.registerResources.mockImplementation(() => {});
 
     mocks.checkLimit.mockResolvedValue(true);
     mocks.ensureFreshToken.mockResolvedValue(resolvedToken);

@@ -56,7 +56,18 @@ All MCP tools grouped by domain.
 - [Catalog Administration](./tools/catalog-admin.md) — 11 tools
 - [Update Sets](./tools/update-sets.md) — 2 tools
 
-## Prompts (4)
+## Resources (5)
+
+MCP resources for direct record access.
+
+- [Overview](./resources/README.md) — What MCP resources are and how they work
+  - `servicenow://me` — Current user profile
+  - `servicenow://incident/{sys_id}` — Incident record
+  - `servicenow://change_request/{sys_id}` — Change request record
+  - `servicenow://kb_knowledge/{sys_id}` — Knowledge article
+  - `servicenow://catalog/{sys_id}` — Catalog item
+
+## Prompts (7)
 
 MCP prompt templates for guided workflows.
 
@@ -65,6 +76,9 @@ MCP prompt templates for guided workflows.
 - [Configure UI Policy](./prompts/configure-ui-policy.md) — Conditions and actions guide
 - [Configure Client Script](./prompts/configure-client-script.md) — Script types and g_form API
 - [Build Variable Set](./prompts/build-variable-set.md) — Set creation and attachment
+- [Incident Triage](./prompts/incident-triage.md) — Classification, priority matrix, assignment
+- [Change Request Planning](./prompts/change-request-planning.md) — Risk assessment, lifecycle management
+- [Knowledge Article Authoring](./prompts/knowledge-article-authoring.md) — Templates and best practices
 
 ## HTTP API
 

@@ -10,6 +10,7 @@ export interface ServiceNowApiError {
   statusCode: number;
   responseBody?: unknown;
   message: string;
+  retryAfterMs?: number;
 }
 
 export class ServiceNowClient {
@@ -151,6 +152,23 @@ export class ServiceNowClient {
       "ServiceNow API error"
     );
 
+    // Parse Retry-After header (seconds or HTTP-date)
+    let retryAfterMs: number | undefined;
+    const retryAfter = (
+      err.response?.headers as Record<string, string> | undefined
+    )?.["retry-after"];
+    if (retryAfter) {
+      const seconds = Number(retryAfter);
+      if (!Number.isNaN(seconds)) {
+        retryAfterMs = seconds * 1000;
+      } else {
+        const date = Date.parse(retryAfter);
+        if (!Number.isNaN(date)) {
+          retryAfterMs = Math.max(0, date - Date.now());
+        }
+      }
+    }
+
     const messages: Record<number, string> = {
       401: "Authentication expired",
       403: "Insufficient permissions",
@@ -161,6 +179,7 @@ export class ServiceNowClient {
     return {
       statusCode,
       responseBody,
+      retryAfterMs,
       message:
         messages[statusCode] ||
         (statusCode >= 500
