@@ -84,10 +84,6 @@ Every `/mcp` request requires `Authorization: Bearer <token>`. The `requireBeare
 
 When the MCP access token expires, the client uses the refresh token to get a new one. The server verifies the user still has valid SN credentials before issuing a new MCP token.
 
-## Legacy Flow (Deprecated)
-
-The previous `GET /oauth/authorize` → `GET /oauth/callback` → session mapping flow is still functional but deprecated. It logs warnings and will be removed in a future release.
-
 ## Error Cases
 
 | Error | Cause |

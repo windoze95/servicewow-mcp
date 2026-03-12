@@ -6,14 +6,14 @@ Common issues and their solutions.
 
 ## 1. OAuth Callback Fails (`TOKEN_EXCHANGE_FAILED`)
 
-**Symptoms**: `/oauth/callback` returns 500. Logs show token exchange failure or `invalid_grant`.
+**Symptoms**: `/oauth/sn-callback` returns an error or redirects the client with an error. Logs show token exchange failure or `invalid_grant`.
 
 **Checks**:
-- `OAUTH_REDIRECT_URI` in `.env` **exactly** matches the ServiceNow OAuth app's Redirect URL (including protocol, host, port, and path)
+- `SN_CALLBACK_URI` (defaults to `{MCP_SERVER_URL}/oauth/sn-callback`) **exactly** matches the ServiceNow OAuth app's Redirect URL (including protocol, host, port, and path)
 - `SERVICENOW_CLIENT_ID` and `SERVICENOW_CLIENT_SECRET` are correct
 - System clock is accurate (OAuth codes expire quickly)
 
-**Fix**: Correct the redirect URI or client credentials in `.env`, restart the server, and re-run the auth flow from `/oauth/authorize`.
+**Fix**: Correct `MCP_SERVER_URL` / `SN_CALLBACK_URI` or client credentials in `.env`, restart the server, and re-authenticate via the MCP client.
 
 See [OAuth Flow](../auth/oauth-flow.md) for the full flow details.
 
@@ -52,32 +52,17 @@ See [Redis Schema](../architecture/redis-schema.md) for the data Redis stores.
 
 See [Testing](../development/testing.md) for testing patterns.
 
-## 5. Reconnect Token Not Working After Restart
-
-**Symptoms**: Client connects with `?token=...` but the session is unauthenticated (tools return `AUTH_REQUIRED`).
-
-**Checks**:
-- Token may be expired (default 100-day TTL)
-- User's OAuth credentials may have been revoked or expired in Redis
-- Token may have been explicitly revoked
-
-**Fix**:
-1. Re-authenticate via `/oauth/authorize` if OAuth credentials are gone
-2. Generate a new reconnect token via `POST /oauth/reconnect-token`
-3. Update the client URL with the new token
-
-See [Reconnect Tokens](../auth/reconnect-tokens.md) for full details.
-
-## 6. Tool Says `AUTH_REQUIRED` After Prior Login
+## 5. Tool Says `AUTH_REQUIRED` After Prior Login
 
 **Symptoms**: Tool requests re-authentication unexpectedly.
 
 **Checks**:
-- Refresh token may be expired or revoked by ServiceNow
-- Session mapping in Redis may have expired (24h TTL for normal sessions, 7d for reconnect sessions)
+- MCP access token may be expired (1-hour TTL) — the client should use its refresh token to obtain a new one
+- MCP refresh token may be expired (30-day TTL) — the client must re-authenticate
+- ServiceNow refresh token may be expired or revoked
 - Redis data may have been flushed
 
-**Fix**: Re-authenticate via `/oauth/authorize`. Confirm Redis persistence and restart behavior.
+**Fix**: Re-authenticate via the MCP client (it will trigger the OAuth flow automatically). Confirm Redis persistence and restart behavior.
 
 See [Token Refresh](../auth/token-refresh.md) and [Session Lifecycle](../architecture/session-lifecycle.md).
 

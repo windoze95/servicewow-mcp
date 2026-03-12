@@ -36,7 +36,6 @@ export function buildRecordUrl(
 
 export function registerAllTools(
   server: McpServer,
-  getSessionId: () => string | undefined,
   config: Config,
   redis: Redis,
   tokenStore: TokenStore
@@ -79,38 +78,13 @@ export function registerAllTools(
     };
   };
 
-  const getAuthUrl = () => {
-    const sessionId = getSessionId();
-    const params = new URLSearchParams();
-    if (sessionId) params.set("session_id", sessionId);
-    return `${config.OAUTH_REDIRECT_URI.replace("/oauth/callback", "/oauth/authorize")}?${params.toString()}`;
-  };
-
-  const safeGetContext = async (extra?: { authInfo?: AuthInfo }): Promise<ToolContext> => {
-    try {
-      return await getContext(extra);
-    } catch (err) {
-      if (err instanceof AuthRequiredError) {
-        const authUrl = getAuthUrl();
-        throw Object.assign(new Error("AUTH_REQUIRED"), {
-          toolError: createToolError(
-            "AUTH_REQUIRED",
-            `Please authenticate: ${authUrl}`,
-            { auth_url: authUrl }
-          ),
-        });
-      }
-      throw err;
-    }
-  };
-
   // Wrapper that catches errors and returns consistent error responses
   const wrapHandler = <T>(
     handler: (ctx: ToolContext, args: T) => Promise<unknown>
   ) => {
     return async (args: T, extra?: { authInfo?: AuthInfo }) => {
       try {
-        const ctx = await safeGetContext(extra);
+        const ctx = await getContext(extra);
         const startTime = Date.now();
         const result = await handler(ctx, args);
         const duration = Date.now() - startTime;

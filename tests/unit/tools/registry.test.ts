@@ -108,12 +108,9 @@ type WrapHandler = <T>(
 ) => (args: T, extra?: { authInfo?: { token: string; clientId: string; scopes: string[]; extra?: Record<string, unknown> } }) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>;
 
 describe("registerAllTools", () => {
-  const tokenStore = {
-    getUserForSession: vi.fn(),
-  };
+  const tokenStore = {};
 
   const config = {
-    OAUTH_REDIRECT_URI: "http://localhost:3001/oauth/callback",
     RATE_LIMIT_PER_USER: 60,
     SERVICENOW_INSTANCE_URL: "https://example.service-now.com",
   };
@@ -168,10 +165,9 @@ describe("registerAllTools", () => {
     });
   });
 
-  it("returns AUTH_REQUIRED with auth_url when no authInfo is present", async () => {
+  it("returns AUTH_REQUIRED error via handleToolError when no authInfo is present", async () => {
     registerAllTools(
       {} as any,
-      () => "session-123",
       config as any,
       {} as any,
       tokenStore as any
@@ -183,18 +179,12 @@ describe("registerAllTools", () => {
 
     expect(handler).not.toHaveBeenCalled();
     expect(response.isError).toBe(true);
-
-    const parsed = JSON.parse(response.content[0].text);
-    expect(parsed.error.code).toBe("AUTH_REQUIRED");
-    expect(parsed.error.details.auth_url).toBe(
-      "http://localhost:3001/oauth/authorize?session_id=session-123"
-    );
+    expect(mocks.handleToolError).toHaveBeenCalled();
   });
 
   it("resolves user from authInfo when bearer auth is present", async () => {
     registerAllTools(
       {} as any,
-      () => undefined, // no session
       config as any,
       {} as any,
       tokenStore as any
@@ -218,14 +208,11 @@ describe("registerAllTools", () => {
     expect(response.isError).toBeUndefined();
     const parsed = JSON.parse(response.content[0].text);
     expect(parsed.success).toBe(true);
-    // Should not have tried session lookup
-    expect(tokenStore.getUserForSession).not.toHaveBeenCalled();
   });
 
   it("passes through known toolError payloads from handlers", async () => {
     registerAllTools(
       {} as any,
-      () => "session-123",
       config as any,
       {} as any,
       tokenStore as any
@@ -265,7 +252,6 @@ describe("registerAllTools", () => {
   it("normalizes unexpected errors using handleToolError", async () => {
     registerAllTools(
       {} as any,
-      () => "session-123",
       config as any,
       {} as any,
       tokenStore as any

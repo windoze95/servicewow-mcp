@@ -68,7 +68,7 @@ export async function createApp(
     })
   );
 
-  // Legacy OAuth routes (deprecated — kept for backward compat)
+  // OAuth routes (SN callback for token exchange)
   app.use("/oauth", createOAuthRouter(config, tokenStore));
 
   // Bearer auth middleware for MCP routes
@@ -94,14 +94,8 @@ export async function createApp(
       },
     });
 
-    // Register all tools with a session-scoped getSessionId
-    registerAllTools(
-      server,
-      () => resolvedSessionId,
-      config,
-      redis,
-      tokenStore
-    );
+    // Register all tools
+    registerAllTools(server, config, redis, tokenStore);
 
     // Clean up on transport close
     transport.onclose = () => {

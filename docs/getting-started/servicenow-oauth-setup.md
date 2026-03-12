@@ -13,7 +13,7 @@ This guide walks through creating the OAuth application in ServiceNow and assign
 | Field | Value |
 |---|---|
 | **Name** | ServiceNow MCP Server (or any descriptive name) |
-| **Redirect URL** | `https://<your-host>:8080/oauth/callback` |
+| **Redirect URL** | `https://<your-host>:8080/oauth/sn-callback` |
 | **Active** | Checked |
 
 4. Save the record
@@ -24,7 +24,7 @@ SERVICENOW_CLIENT_ID=<client_id>
 SERVICENOW_CLIENT_SECRET=<client_secret>
 ```
 
-> The redirect URI in `.env` (`OAUTH_REDIRECT_URI`) must **exactly** match the Redirect URL configured in ServiceNow. A mismatch causes `TOKEN_EXCHANGE_FAILED` errors. See [Troubleshooting](../troubleshooting/README.md).
+> The redirect URI (`SN_CALLBACK_URI`, which defaults to `{MCP_SERVER_URL}/oauth/sn-callback`) must **exactly** match the Redirect URL configured in ServiceNow. A mismatch causes `TOKEN_EXCHANGE_FAILED` errors. See [Troubleshooting](../troubleshooting/README.md).
 
 ## Assign the Required Role
 

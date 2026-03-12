@@ -25,7 +25,6 @@ The server uses **MCP-spec OAuth 2.0** with PKCE to authenticate MCP clients, de
 | [OAuth Flow](./oauth-flow.md) | Authorization Code flow with CSRF protection |
 | [Token Storage](./token-storage.md) | AES-256-GCM encryption, StoredToken shape, Redis keys |
 | [Token Refresh](./token-refresh.md) | Transparent refresh with distributed lock |
-| [Reconnect Tokens](./reconnect-tokens.md) | Session persistence across server restarts |
 
 ## Key Properties
 

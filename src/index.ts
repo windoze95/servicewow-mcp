@@ -35,7 +35,7 @@ async function main() {
     logger.info(`Health check: ${protocol}://localhost:${config.MCP_PORT}/health`);
     logger.info(`MCP endpoint: ${protocol}://localhost:${config.MCP_PORT}/mcp`);
     logger.info(
-      `OAuth authorize: ${protocol}://localhost:${config.MCP_PORT}/oauth/authorize`
+      `OAuth discovery: ${protocol}://localhost:${config.MCP_PORT}/.well-known/oauth-authorization-server`
     );
   }
 

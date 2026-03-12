@@ -22,7 +22,7 @@ interface ToolError {
 
 | Code | HTTP Equiv | When |
 |---|---|---|
-| `AUTH_REQUIRED` | 401 | No session mapping, no token, or refresh token expired |
+| `AUTH_REQUIRED` | 401 | No valid bearer token, no SN credentials, or refresh token expired |
 | `AUTH_EXPIRED` | 401 | ServiceNow returned 401 (token invalidated server-side) |
 | `INSUFFICIENT_PERMISSIONS` | 403 | ServiceNow returned 403 (missing ACL/role) |
 | `NOT_FOUND` | 404 | Record not found in ServiceNow |
@@ -53,7 +53,7 @@ function mapServiceNowError(statusCode: number, responseBody?: unknown): ToolErr
 
 ### Auth Errors
 
-`AuthRequiredError` is caught by `safeGetContext()` and converted into a response containing the OAuth authorize URL.
+`AuthRequiredError` is caught by `wrapHandler` and normalized via `handleToolError()`, returning a structured error to the MCP client. The `requireBearerAuth` middleware rejects unauthenticated requests with 401 before tool handlers run.
 
 ### Unexpected Errors
 
@@ -77,7 +77,7 @@ Every tool handler is wrapped by `wrapHandler` in `src/tools/registry.ts`:
 ```typescript
 const wrapHandler = (handler) => async (args) => {
   try {
-    const ctx = await safeGetContext();
+    const ctx = await getContext(extra);
     const result = await handler(ctx, args);
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   } catch (err) {

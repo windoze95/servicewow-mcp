@@ -12,7 +12,6 @@ describe("loadConfig", () => {
     delete process.env.LOG_LEVEL;
     delete process.env.RATE_LIMIT_PER_USER;
     delete process.env.ALLOWED_ORIGINS;
-    delete process.env.RECONNECT_TOKEN_TTL;
   });
 
   afterEach(() => {
@@ -24,7 +23,6 @@ describe("loadConfig", () => {
     process.env.SERVICENOW_INSTANCE_URL = "https://example.service-now.com///";
     process.env.SERVICENOW_CLIENT_ID = "client-id";
     process.env.SERVICENOW_CLIENT_SECRET = "client-secret";
-    process.env.OAUTH_REDIRECT_URI = "http://localhost:3001/oauth/callback";
     process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 1).toString("base64");
     process.env.ALLOWED_ORIGINS = "https://a.example.com, https://b.example.com";
 
@@ -37,7 +35,6 @@ describe("loadConfig", () => {
     expect(config.NODE_ENV).toBe("development");
     expect(config.LOG_LEVEL).toBe("info");
     expect(config.RATE_LIMIT_PER_USER).toBe(60);
-    expect(config.RECONNECT_TOKEN_TTL).toBe(8640000);
     expect(config.ALLOWED_ORIGINS).toEqual([
       "https://a.example.com",
       "https://b.example.com",
@@ -48,7 +45,6 @@ describe("loadConfig", () => {
     process.env.SERVICENOW_INSTANCE_URL = "https://cached.example.com/";
     process.env.SERVICENOW_CLIENT_ID = "client-id";
     process.env.SERVICENOW_CLIENT_SECRET = "client-secret";
-    process.env.OAUTH_REDIRECT_URI = "http://localhost:3001/oauth/callback";
     process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 2).toString("base64");
     process.env.ALLOWED_ORIGINS = "https://claude.ai";
 
@@ -66,7 +62,6 @@ describe("loadConfig", () => {
     process.env.SERVICENOW_INSTANCE_URL = "not-a-url";
     process.env.SERVICENOW_CLIENT_ID = "";
     process.env.SERVICENOW_CLIENT_SECRET = "";
-    process.env.OAUTH_REDIRECT_URI = "bad-uri";
     process.env.TOKEN_ENCRYPTION_KEY = "";
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -89,7 +84,6 @@ describe("loadConfig", () => {
     process.env.SERVICENOW_INSTANCE_URL = "https://example.service-now.com";
     process.env.SERVICENOW_CLIENT_ID = "client-id";
     process.env.SERVICENOW_CLIENT_SECRET = "client-secret";
-    process.env.OAUTH_REDIRECT_URI = "http://localhost:3001/oauth/callback";
     process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 1).toString("base64");
     // ALLOWED_ORIGINS is intentionally not set (deleted in beforeEach)
 
@@ -113,7 +107,6 @@ describe("loadConfig", () => {
     process.env.SERVICENOW_INSTANCE_URL = "https://example.service-now.com";
     process.env.SERVICENOW_CLIENT_ID = "client-id";
     process.env.SERVICENOW_CLIENT_SECRET = "client-secret";
-    process.env.OAUTH_REDIRECT_URI = "http://localhost:3001/oauth/callback";
     process.env.TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 1).toString("base64");
     process.env.ALLOWED_ORIGINS = "https://claude.ai";
     process.env.TLS_CERT_PATH = "/certs/server.crt";

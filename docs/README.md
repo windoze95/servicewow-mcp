@@ -31,7 +31,6 @@ Per-user OAuth 2.0 delegation and token management.
 - [OAuth Flow](./auth/oauth-flow.md) — Authorization Code flow with CSRF protection
 - [Token Storage](./auth/token-storage.md) — AES-256-GCM encryption and StoredToken shape
 - [Token Refresh](./auth/token-refresh.md) — Transparent refresh with distributed lock
-- [Reconnect Tokens](./auth/reconnect-tokens.md) — Session persistence across server restarts
 
 ## Security
 

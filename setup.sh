@@ -83,8 +83,6 @@ generate_env() {
     TOKEN_ENCRYPTION_KEY=$(openssl rand -base64 32)
     REDIS_PASSWORD=$(openssl rand -base64 24)
 
-    REDIRECT_URI="https://${SERVER_HOST}:${SERVER_PORT}/oauth/callback"
-
     echo ""
     echo -e "${BOLD}TLS Configuration${NC}"
     echo "-----------------"
@@ -110,6 +108,13 @@ generate_env() {
         fi
     fi
 
+    # Derive public-facing base URL
+    if [ "$DEPLOY_MODE" = "2" ]; then
+        PUBLIC_URL="https://${CADDY_DOMAIN}"
+    else
+        PUBLIC_URL="https://${SERVER_HOST}:${SERVER_PORT}"
+    fi
+
     # Write .env file
     cat > "$ENV_FILE" <<EOF
 # ServiceNow Instance
@@ -117,8 +122,9 @@ SERVICENOW_INSTANCE_URL=${SN_URL}
 SERVICENOW_CLIENT_ID=${CLIENT_ID}
 SERVICENOW_CLIENT_SECRET=${CLIENT_SECRET}
 
-# OAuth
-OAUTH_REDIRECT_URI=${REDIRECT_URI}
+# MCP OAuth
+MCP_SERVER_URL=${PUBLIC_URL}
+SN_CALLBACK_URI=${PUBLIC_URL}/oauth/sn-callback
 
 # Security (auto-generated)
 TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}
@@ -183,8 +189,15 @@ wait_for_health() {
     local max_attempts=30
     local attempt=0
 
+    local HEALTH_URL
+    if [ "${DEPLOY_MODE:-1}" = "2" ]; then
+        HEALTH_URL="https://${CADDY_DOMAIN}/health"
+    else
+        HEALTH_URL="http://localhost:${SERVER_PORT:-8080}/health"
+    fi
+
     while [ $attempt -lt $max_attempts ]; do
-        if curl -sf "http://localhost:${SERVER_PORT:-8080}/health" > /dev/null 2>&1; then
+        if curl -sf "${HEALTH_URL}" > /dev/null 2>&1; then
             echo -e "${GREEN}✓ Server is healthy!${NC}"
             return
         fi
@@ -207,11 +220,11 @@ print_instructions() {
     if [ "${DEPLOY_MODE:-1}" = "2" ]; then
         echo -e "${BOLD}MCP Endpoint:${NC} https://${CADDY_DOMAIN}/mcp"
         echo -e "${BOLD}Health Check:${NC} https://${CADDY_DOMAIN}/health"
-        echo -e "${BOLD}OAuth Start:${NC}  https://${CADDY_DOMAIN}/oauth/authorize"
+        echo -e "${BOLD}OAuth Start:${NC}  https://${CADDY_DOMAIN}/.well-known/oauth-authorization-server"
     else
         echo -e "${BOLD}MCP Endpoint:${NC} https://${SERVER_HOST:-localhost}:${PORT}/mcp"
         echo -e "${BOLD}Health Check:${NC} http://localhost:${PORT}/health"
-        echo -e "${BOLD}OAuth Start:${NC}  https://${SERVER_HOST:-localhost}:${PORT}/oauth/authorize"
+        echo -e "${BOLD}OAuth Start:${NC}  https://${SERVER_HOST:-localhost}:${PORT}/.well-known/oauth-authorization-server"
     fi
     echo ""
     echo -e "${BOLD}ServiceNow OAuth Application Setup:${NC}"
@@ -220,7 +233,7 @@ print_instructions() {
     echo "2. Create new: 'Create an OAuth API endpoint for external clients'"
     echo "3. Configure:"
     echo "   - Name: ServiceNow MCP Server"
-    echo "   - Redirect URL: ${REDIRECT_URI:-https://localhost:${PORT}/oauth/callback}"
+    echo "   - Redirect URL: ${PUBLIC_URL:-https://${SERVER_HOST:-localhost}:${PORT}}/oauth/sn-callback"
     echo "   - Note the Client ID and Client Secret"
     echo "   - Ensure they match your .env file"
     echo ""
@@ -233,12 +246,13 @@ print_instructions() {
     echo "This role only allows REST API access — record-level permissions are still"
     echo "governed by each user's existing ACLs and roles."
     echo ""
+    local MCP_URL="${PUBLIC_URL:-https://${SERVER_HOST:-localhost}:${PORT}}"
     echo -e "${BOLD}Claude Desktop Configuration:${NC}"
     echo '{'
     echo '  "mcpServers": {'
     echo '    "servicenow": {'
     echo '      "type": "streamablehttp",'
-    echo "      \"url\": \"https://${SERVER_HOST:-localhost}:${PORT}/mcp\""
+    echo "      \"url\": \"${MCP_URL}/mcp\""
     echo '    }'
     echo '  }'
     echo '}'

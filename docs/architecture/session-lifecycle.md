@@ -37,17 +37,6 @@ sequenceDiagram
     E-->>C: Response with Mcp-Session-Id header
 ```
 
-### Reconnect Token Path
-
-If the request includes `?token=<hex>`:
-
-1. The server looks up the token in Redis (`reconnect:<token>` → `user_sys_id`)
-2. Verifies the user still has valid OAuth credentials
-3. Creates the session with the user pre-mapped (calls `storeSessionMappingWithTTL` with a 7-day TTL)
-4. Refreshes the reconnect token's TTL
-
-See [Reconnect Tokens](../auth/reconnect-tokens.md) for details.
-
 ## Existing Session Routing
 
 When `POST /mcp` arrives **with** a known `Mcp-Session-Id`, the request is routed directly to the existing session's transport:
@@ -69,18 +58,14 @@ Sessions end in one of three ways:
 |---|---|
 | Client sends `DELETE /mcp` | `transport.close()` is called, session removed from map |
 | Transport closes naturally | `transport.onclose` callback removes the session |
-| Server restart | In-memory map is lost; clients must reconnect (optionally via reconnect tokens) |
+| Server restart | In-memory map is lost; clients must reconnect and re-authenticate via MCP OAuth |
 
-## Session-to-User Mapping
+## User Resolution
 
-The session ID alone doesn't identify a user. After OAuth completes, the callback stores a mapping in Redis:
+The session ID alone doesn't identify a user. User identity comes from the `Authorization: Bearer` token on each request. The `requireBearerAuth` middleware verifies the MCP access token and provides `authInfo` (containing `userSysId`) to the tool context.
 
-```
-session:<sessionId> → user_sys_id   (TTL: 24h, or 7 days for reconnect sessions)
-```
-
-When a tool executes, `getContext()` resolves `sessionId → userSysId → StoredToken → ServiceNowClient`.
+When a tool executes, `getContext()` resolves `authInfo.userSysId → StoredToken → ServiceNowClient`.
 
 ---
 
-**See also**: [Request Flow](./request-flow.md) · [Redis Schema](./redis-schema.md) · [Reconnect Tokens](../auth/reconnect-tokens.md)
+**See also**: [Request Flow](./request-flow.md) · [Redis Schema](./redis-schema.md) · [OAuth Flow](../auth/oauth-flow.md)

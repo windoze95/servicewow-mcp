@@ -75,7 +75,7 @@ class AuthRequiredError extends Error {
 }
 ```
 
-The `safeGetContext()` wrapper in the registry catches this and returns a response with the OAuth authorize URL, prompting the user to re-authenticate.
+The `wrapHandler` wrapper in the registry catches this via `handleToolError()` and returns a structured error to the MCP client. The `requireBearerAuth` middleware prevents unauthenticated requests from reaching tool handlers.
 
 ---
 
