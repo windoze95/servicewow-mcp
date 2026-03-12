@@ -20,7 +20,7 @@ node --version   # v22.x.x
 
 ### Redis
 
-Redis stores encrypted OAuth tokens, session mappings, reconnect tokens, OAuth state, and rate-limit counters. See [Redis Schema](../architecture/redis-schema.md) for key patterns.
+Redis stores encrypted OAuth tokens, OAuth client registrations, authorization state, MCP bearer tokens, and rate-limit counters. See [Redis Schema](../architecture/redis-schema.md) for key patterns.
 
 For local development, install Redis natively or run it via Docker:
 

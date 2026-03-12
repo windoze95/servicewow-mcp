@@ -29,7 +29,7 @@ flowchart LR
 - **Per-user OAuth tokens**: No shared service accounts. Every API call carries the user's own access token. See [OAuth Flow](../auth/oauth-flow.md).
 - **Encrypted token storage**: OAuth tokens are AES-256-GCM encrypted in Redis. See [Token Storage](../auth/token-storage.md).
 - **Transparent token refresh**: Expired tokens are refreshed automatically with a distributed lock to prevent races. See [Token Refresh](../auth/token-refresh.md).
-- **Reconnect tokens**: Optional session persistence across server restarts. See [Reconnect Tokens](../auth/reconnect-tokens.md).
+- **MCP-spec OAuth**: Standard discovery, PKCE, dynamic client registration — MCP clients handle auth natively. See [OAuth Flow](../auth/oauth-flow.md).
 
 ## Section Index
 
@@ -38,7 +38,7 @@ flowchart LR
 | [Project Structure](./project-structure.md) | `src/` directory map with file purposes |
 | [Session Lifecycle](./session-lifecycle.md) | How sessions are created, maintained, and cleaned up |
 | [Request Flow](./request-flow.md) | Trace a tool call from HTTP to ServiceNow and back |
-| [Redis Schema](./redis-schema.md) | All 7 Redis key patterns with TTLs and data shapes |
+| [Redis Schema](./redis-schema.md) | All Redis key patterns with TTLs and data shapes |
 
 ---
 

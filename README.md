@@ -61,7 +61,7 @@ Comprehensive documentation lives in [`docs/`](./docs/README.md):
 
 - **[Getting Started](./docs/getting-started/README.md)** — Prerequisites, local dev, OAuth setup, first tool call
 - **[Architecture](./docs/architecture/README.md)** — System design, session lifecycle, request flow, Redis schema
-- **[Authentication](./docs/auth/README.md)** — OAuth flow, token storage, refresh, reconnect tokens
+- **[Authentication](./docs/auth/README.md)** — OAuth flow, token storage, refresh
 - **[Security](./docs/security/README.md)** — Identity enforcement, input validation, rate limiting, error handling
 - **[Tools (35)](./docs/tools/README.md)** — All tools: incidents, change requests, knowledge, update sets, and more
 - **[Prompts (4)](./docs/prompts/README.md)** — Guided workflows for catalog administration

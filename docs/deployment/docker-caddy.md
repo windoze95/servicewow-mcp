@@ -53,7 +53,7 @@ Caddy joins the `mcp-internal` network and depends on `servicenow-mcp` being hea
 
 - The MCP server itself does **not** need TLS enabled (`TLS_CERT_PATH`/`TLS_KEY_PATH`) when behind Caddy — Caddy terminates TLS
 - Caddy auto-renews certificates before expiry
-- For the `OAUTH_REDIRECT_URI` in `.env`, use `https://${CADDY_DOMAIN}/oauth/callback`
+- Set `MCP_SERVER_URL=https://${CADDY_DOMAIN}` in `.env` so the OAuth discovery and SN callback URLs resolve correctly
 
 ---
 

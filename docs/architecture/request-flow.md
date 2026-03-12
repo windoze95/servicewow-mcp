@@ -17,14 +17,13 @@ sequenceDiagram
     participant TR as TokenRefresher
     participant SN as ServiceNow API
 
-    C->>E: POST /mcp (tool call, Mcp-Session-Id header)
+    C->>E: POST /mcp (tool call, Authorization: Bearer, Mcp-Session-Id)
+    E->>E: requireBearerAuth → authInfo { userSysId }
     E->>T: transport.handleRequest(req, res)
     T->>W: tool handler invoked with args
-    W->>G: safeGetContext()
+    W->>G: getContext()
 
-    G->>G: getSessionId() → sessionId
-    G->>R: getUserForSession(sessionId)
-    R-->>G: userSysId
+    G->>G: authInfo.extra.userSysId → userSysId
 
     G->>G: rateLimiter.checkLimit(userSysId)
     G->>R: Lua token bucket script
@@ -63,14 +62,13 @@ The transport deserializes the MCP request and dispatches it to the registered t
 
 ### 3. Context Resolution (`src/tools/registry.ts`)
 
-`wrapHandler` calls `safeGetContext()`, which:
+`wrapHandler` calls `getContext()`, which:
 
-1. **Gets the session ID** from the closure (`getSessionId()`)
-2. **Resolves the user** via Redis session mapping (`session:<id>` → `user_sys_id`)
-3. **Checks rate limit** via the [token bucket](../security/rate-limiting.md) Lua script
-4. **Ensures a fresh token** via [TokenRefresher](../auth/token-refresh.md) (refreshes if within 60s of expiry)
-5. **Creates a ServiceNowClient** with the user's access token
-6. **Returns a ToolContext** with the client, instance URL, and user identity
+1. **Reads `authInfo`** from the bearer token (provided by `requireBearerAuth` middleware) to get `userSysId`
+2. **Checks rate limit** via the [token bucket](../security/rate-limiting.md) Lua script
+3. **Ensures a fresh token** via [TokenRefresher](../auth/token-refresh.md) (refreshes if within 60s of expiry)
+4. **Creates a ServiceNowClient** with the user's access token
+5. **Returns a ToolContext** with the client, instance URL, and user identity
 
 If any step fails, an appropriate error (`AUTH_REQUIRED`, `RATE_LIMITED`) is returned.
 

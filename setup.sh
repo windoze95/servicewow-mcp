@@ -83,8 +83,6 @@ generate_env() {
     TOKEN_ENCRYPTION_KEY=$(openssl rand -base64 32)
     REDIS_PASSWORD=$(openssl rand -base64 24)
 
-    REDIRECT_URI="https://${SERVER_HOST}:${SERVER_PORT}/oauth/callback"
-
     echo ""
     echo -e "${BOLD}TLS Configuration${NC}"
     echo "-----------------"
@@ -117,8 +115,9 @@ SERVICENOW_INSTANCE_URL=${SN_URL}
 SERVICENOW_CLIENT_ID=${CLIENT_ID}
 SERVICENOW_CLIENT_SECRET=${CLIENT_SECRET}
 
-# OAuth
-OAUTH_REDIRECT_URI=${REDIRECT_URI}
+# MCP OAuth
+MCP_SERVER_URL=https://${SERVER_HOST}:${SERVER_PORT}
+SN_CALLBACK_URI=https://${SERVER_HOST}:${SERVER_PORT}/oauth/sn-callback
 
 # Security (auto-generated)
 TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}
@@ -207,11 +206,11 @@ print_instructions() {
     if [ "${DEPLOY_MODE:-1}" = "2" ]; then
         echo -e "${BOLD}MCP Endpoint:${NC} https://${CADDY_DOMAIN}/mcp"
         echo -e "${BOLD}Health Check:${NC} https://${CADDY_DOMAIN}/health"
-        echo -e "${BOLD}OAuth Start:${NC}  https://${CADDY_DOMAIN}/oauth/authorize"
+        echo -e "${BOLD}OAuth Start:${NC}  https://${CADDY_DOMAIN}/.well-known/oauth-authorization-server"
     else
         echo -e "${BOLD}MCP Endpoint:${NC} https://${SERVER_HOST:-localhost}:${PORT}/mcp"
         echo -e "${BOLD}Health Check:${NC} http://localhost:${PORT}/health"
-        echo -e "${BOLD}OAuth Start:${NC}  https://${SERVER_HOST:-localhost}:${PORT}/oauth/authorize"
+        echo -e "${BOLD}OAuth Start:${NC}  https://${SERVER_HOST:-localhost}:${PORT}/.well-known/oauth-authorization-server"
     fi
     echo ""
     echo -e "${BOLD}ServiceNow OAuth Application Setup:${NC}"
@@ -220,7 +219,7 @@ print_instructions() {
     echo "2. Create new: 'Create an OAuth API endpoint for external clients'"
     echo "3. Configure:"
     echo "   - Name: ServiceNow MCP Server"
-    echo "   - Redirect URL: ${REDIRECT_URI:-https://localhost:${PORT}/oauth/callback}"
+    echo "   - Redirect URL: https://${SERVER_HOST:-localhost}:${PORT}/oauth/sn-callback"
     echo "   - Note the Client ID and Client Secret"
     echo "   - Ensure they match your .env file"
     echo ""

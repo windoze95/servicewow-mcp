@@ -34,7 +34,6 @@ At minimum, set these in `.env`:
 SERVICENOW_INSTANCE_URL=https://yourorg.service-now.com
 SERVICENOW_CLIENT_ID=<from SN OAuth app>
 SERVICENOW_CLIENT_SECRET=<from SN OAuth app>
-OAUTH_REDIRECT_URI=http://localhost:8080/oauth/callback
 TOKEN_ENCRYPTION_KEY=<base64 32-byte key>
 ALLOWED_ORIGINS=https://claude.ai
 ```

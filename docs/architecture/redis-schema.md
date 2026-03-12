@@ -32,51 +32,7 @@ Stores the user's encrypted OAuth tokens.
 
 See [Token Storage](../auth/token-storage.md) for encryption details.
 
-### 2. `session:<session_id>` — Session-to-User Mapping
-
-Maps an MCP session ID to a ServiceNow user.
-
-| Field | Value |
-|---|---|
-| **Type** | String (`user_sys_id`) |
-| **TTL** | 86,400 seconds (24 hours) for normal sessions; 604,800 seconds (7 days) for reconnect sessions |
-| **Set by** | `TokenStore.storeSessionMapping()` or `storeSessionMappingWithTTL()` |
-| **Read by** | `TokenStore.getUserForSession()` |
-
-### 3. `reconnect:<token_hex>` — Reconnect Token
-
-Maps a reconnect token to a user.
-
-| Field | Value |
-|---|---|
-| **Type** | String (`user_sys_id`) |
-| **TTL** | Configurable via `RECONNECT_TOKEN_TTL` (default 8,640,000 seconds / 100 days), refreshed on each successful use |
-| **Set by** | `TokenStore.storeReconnectToken()` |
-| **Read by** | `TokenStore.getUserForReconnectToken()` |
-
-### 4. `reconnect_index:<user_sys_id>` — Reconnect Token Index
-
-Set of all reconnect tokens belonging to a user. Used for "revoke all" operations.
-
-| Field | Value |
-|---|---|
-| **Type** | Set (members are token hex strings) |
-| **TTL** | Same as the reconnect token TTL |
-| **Set by** | `TokenStore.storeReconnectToken()` |
-| **Read by** | `TokenStore.revokeAllReconnectTokens()` |
-
-### 5. `oauth_state:<state_hex>` — OAuth CSRF State
-
-Stores OAuth state parameters for CSRF protection. One-time use.
-
-| Field | Value |
-|---|---|
-| **Type** | String (JSON: `{ sessionId?: string, redirectUri?: string }`) |
-| **TTL** | 600 seconds (10 minutes) |
-| **Set by** | `TokenStore.storeOAuthState()` |
-| **Read by** | `TokenStore.getOAuthState()` (deletes on read) |
-
-### 6. `token_refresh_lock:<user_sys_id>` — Refresh Lock
+### 2. `token_refresh_lock:<user_sys_id>` — Refresh Lock
 
 Distributed lock to prevent concurrent token refresh for the same user.
 
@@ -87,7 +43,7 @@ Distributed lock to prevent concurrent token refresh for the same user.
 | **Set by** | `TokenRefresher.refreshWithLock()` via `SET NX EX` |
 | **Deleted by** | `TokenRefresher.refreshWithLock()` in `finally` block |
 
-### 7. `ratelimit:<user_sys_id>` — Rate Limit Bucket
+### 3. `ratelimit:<user_sys_id>` — Rate Limit Bucket
 
 Token bucket counter for per-user rate limiting.
 
@@ -100,7 +56,7 @@ Token bucket counter for per-user rate limiting.
 
 See [Rate Limiting](../security/rate-limiting.md) for the Lua script details.
 
-### 8. `oauth_client:<client_id>` — Registered OAuth Client
+### 4. `oauth_client:<client_id>` — Registered OAuth Client
 
 Stores dynamic client registration data.
 
@@ -111,7 +67,7 @@ Stores dynamic client registration data.
 | **Set by** | `RedisClientStore.registerClient()` |
 | **Read by** | `RedisClientStore.getClient()` |
 
-### 9. `pending_auth:<id>` — In-Flight Authorization
+### 5. `pending_auth:<id>` — In-Flight Authorization
 
 Links a ServiceNow OAuth callback back to the MCP client's authorization request.
 
@@ -122,7 +78,7 @@ Links a ServiceNow OAuth callback back to the MCP client's authorization request
 | **Set by** | `ServiceNowOAuthProvider.authorize()` |
 | **Read by** | `/oauth/sn-callback` route |
 
-### 10. `sn_state:<state>` — ServiceNow CSRF State
+### 6. `sn_state:<state>` — ServiceNow CSRF State
 
 CSRF state for the ServiceNow leg of the SDK OAuth flow. One-time use.
 
@@ -133,7 +89,7 @@ CSRF state for the ServiceNow leg of the SDK OAuth flow. One-time use.
 | **Set by** | `ServiceNowOAuthProvider.authorize()` |
 | **Read by** | `/oauth/sn-callback` route (deletes on read) |
 
-### 11. `auth_code:<code>` — MCP Authorization Code
+### 7. `auth_code:<code>` — MCP Authorization Code
 
 Our authorization code issued after successful ServiceNow authentication.
 
@@ -144,7 +100,7 @@ Our authorization code issued after successful ServiceNow authentication.
 | **Set by** | `/oauth/sn-callback` route |
 | **Read by** | `ServiceNowOAuthProvider.exchangeAuthorizationCode()` |
 
-### 12. `mcp_token:<token>` — MCP Access Token
+### 8. `mcp_token:<token>` — MCP Access Token
 
 Opaque bearer token issued to MCP clients. Maps to a ServiceNow user.
 
@@ -155,7 +111,7 @@ Opaque bearer token issued to MCP clients. Maps to a ServiceNow user.
 | **Set by** | `ServiceNowOAuthProvider.exchangeAuthorizationCode()` / `exchangeRefreshToken()` |
 | **Read by** | `ServiceNowOAuthProvider.verifyAccessToken()` |
 
-### 13. `mcp_refresh:<token>` — MCP Refresh Token
+### 9. `mcp_refresh:<token>` — MCP Refresh Token
 
 Long-lived refresh token for obtaining new MCP access tokens.
 
@@ -171,18 +127,14 @@ Long-lived refresh token for obtaining new MCP access tokens.
 | Key Pattern | Type | TTL | Purpose |
 |---|---|---|---|
 | `token:<user_sys_id>` | String (encrypted) | 100 days | ServiceNow OAuth credentials |
+| `token_refresh_lock:<user_sys_id>` | String | 10 sec | Distributed refresh lock |
+| `ratelimit:<user_sys_id>` | Hash | 2 min | Token bucket counter |
 | `oauth_client:<client_id>` | String (JSON) | 90 days | Registered OAuth clients |
 | `pending_auth:<id>` | String (JSON) | 10 min | In-flight authorization |
 | `sn_state:<state>` | String (JSON) | 10 min | ServiceNow CSRF state |
 | `auth_code:<code>` | String (JSON) | 5 min | MCP authorization codes |
 | `mcp_token:<token>` | String (JSON) | 1 hour | MCP access tokens |
 | `mcp_refresh:<token>` | String (JSON) | 30 days | MCP refresh tokens |
-| `session:<session_id>` | String | 24h / 7d | Session → user mapping (deprecated) |
-| `reconnect:<token>` | String | 100 days (configurable) | Reconnect token → user (deprecated) |
-| `reconnect_index:<user_sys_id>` | Set | 100 days (configurable) | User's reconnect tokens (deprecated) |
-| `oauth_state:<state>` | String (JSON) | 10 min | Legacy CSRF state (deprecated) |
-| `token_refresh_lock:<user_sys_id>` | String | 10 sec | Distributed refresh lock |
-| `ratelimit:<user_sys_id>` | Hash | 2 min | Token bucket counter |
 
 ---
 

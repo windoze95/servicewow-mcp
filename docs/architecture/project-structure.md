@@ -9,8 +9,8 @@ src/
 ├── config.ts                   # Zod-validated environment config
 │
 ├── auth/
-│   ├── oauth.ts                # OAuth authorize + callback + reconnect-token routes
-│   ├── tokenStore.ts           # Encrypted token CRUD, session mapping, reconnect tokens
+│   ├── oauth.ts                # MCP-spec OAuth provider, SN callback route
+│   ├── tokenStore.ts           # Encrypted token CRUD, MCP token management
 │   ├── tokenRefresh.ts         # Transparent token refresh with distributed lock
 │   └── encryption.ts           # AES-256-GCM encrypt/decrypt primitives
 │

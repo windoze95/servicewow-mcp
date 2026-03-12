@@ -79,8 +79,6 @@ Mock the token store for tool tests:
 const mockTokenStore = {
   getToken: vi.fn(),
   storeToken: vi.fn(),
-  getUserForSession: vi.fn(),
-  storeSessionMapping: vi.fn(),
   // ...
 };
 ```

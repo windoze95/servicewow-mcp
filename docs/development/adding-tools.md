@@ -60,13 +60,13 @@ interface ToolContext {
 }
 ```
 
-The context resolution flow: session ID → Redis lookup → rate limit check → token refresh → ServiceNowClient creation.
+The context resolution flow: bearer token → `authInfo.userSysId` → rate limit check → token refresh → ServiceNowClient creation.
 
 ## Step 3: wrapHandler
 
 `wrapHandler` provides:
 
-1. **Authentication**: Calls `safeGetContext()` to resolve the user and create an authenticated client
+1. **Authentication**: Calls `getContext()` to resolve the user from `authInfo` and create an authenticated client
 2. **Rate limiting**: Checked before the handler executes
 3. **Error normalization**: Catches all errors and maps them to consistent `ToolError` responses
 4. **Logging**: Logs completion time and user

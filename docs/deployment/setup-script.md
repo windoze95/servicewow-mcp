@@ -58,7 +58,7 @@ Polls `http://localhost:{port}/health` every 2 seconds for up to 60 seconds. Rep
 Displays:
 - MCP endpoint URL
 - Health check URL
-- OAuth authorize URL
+- OAuth discovery URL (`/.well-known/oauth-authorization-server`)
 - ServiceNow OAuth application setup steps
 - User role requirements (`snc_platform_rest_api_access`)
 - Claude Desktop configuration JSON
