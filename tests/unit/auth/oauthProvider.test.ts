@@ -285,8 +285,17 @@ describe("ServiceNowOAuthProvider", () => {
   });
 
   describe("revokeToken", () => {
-    it("deletes access token when hinted", async () => {
-      await provider.revokeToken({} as any, {
+    const owningClient = { client_id: "client-1" } as any;
+
+    it("deletes access token when hinted and client matches", async () => {
+      tokenStore.getMcpToken.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "client-1",
+        scopes: [],
+        expiresAt: 1700001800,
+      });
+
+      await provider.revokeToken(owningClient, {
         token: "tok-123",
         token_type_hint: "access_token",
       });
@@ -295,8 +304,14 @@ describe("ServiceNowOAuthProvider", () => {
       expect(tokenStore.deleteMcpRefreshToken).not.toHaveBeenCalled();
     });
 
-    it("deletes refresh token when hinted", async () => {
-      await provider.revokeToken({} as any, {
+    it("deletes refresh token when hinted and client matches", async () => {
+      tokenStore.getMcpRefreshToken.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "client-1",
+        scopes: [],
+      });
+
+      await provider.revokeToken(owningClient, {
         token: "tok-123",
         token_type_hint: "refresh_token",
       });
@@ -306,10 +321,63 @@ describe("ServiceNowOAuthProvider", () => {
     });
 
     it("tries both when no hint provided", async () => {
-      await provider.revokeToken({} as any, { token: "tok-123" });
+      tokenStore.getMcpToken.mockResolvedValue(null);
+      tokenStore.getMcpRefreshToken.mockResolvedValue(null);
+
+      await provider.revokeToken(owningClient, { token: "tok-123" });
 
       expect(tokenStore.deleteMcpToken).toHaveBeenCalledWith("tok-123");
       expect(tokenStore.deleteMcpRefreshToken).toHaveBeenCalledWith("tok-123");
+    });
+
+    it("succeeds silently when token does not exist", async () => {
+      tokenStore.getMcpToken.mockResolvedValue(null);
+
+      await provider.revokeToken(owningClient, {
+        token: "nonexistent",
+        token_type_hint: "access_token",
+      });
+
+      expect(tokenStore.deleteMcpToken).toHaveBeenCalledWith("nonexistent");
+    });
+
+    it("rejects when access token belongs to a different client", async () => {
+      tokenStore.getMcpToken.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "other-client",
+        scopes: [],
+        expiresAt: 1700001800,
+      });
+
+      const wrongClient = { client_id: "client-1" } as any;
+
+      await expect(
+        provider.revokeToken(wrongClient, {
+          token: "tok-123",
+          token_type_hint: "access_token",
+        })
+      ).rejects.toThrow("Token was not issued to this client");
+
+      expect(tokenStore.deleteMcpToken).not.toHaveBeenCalled();
+    });
+
+    it("rejects when refresh token belongs to a different client", async () => {
+      tokenStore.getMcpRefreshToken.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "other-client",
+        scopes: [],
+      });
+
+      const wrongClient = { client_id: "client-1" } as any;
+
+      await expect(
+        provider.revokeToken(wrongClient, {
+          token: "tok-123",
+          token_type_hint: "refresh_token",
+        })
+      ).rejects.toThrow("Token was not issued to this client");
+
+      expect(tokenStore.deleteMcpRefreshToken).not.toHaveBeenCalled();
     });
   });
 });

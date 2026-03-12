@@ -19,6 +19,27 @@ export function createOAuthRouter(
 
     if (error) {
       logger.error({ error }, "ServiceNow OAuth error (SDK flow)");
+
+      // Try to redirect the error back to the MCP client's redirect_uri
+      // so the client gets a deterministic OAuth error instead of hanging.
+      if (state) {
+        const snStateData = await tokenStore.getSnState(state as string);
+        if (snStateData) {
+          const pendingAuth = await tokenStore.getPendingAuth(snStateData.pendingAuthId);
+          if (pendingAuth) {
+            await tokenStore.deletePendingAuth(snStateData.pendingAuthId);
+            const redirectUrl = new URL(pendingAuth.redirectUri);
+            redirectUrl.searchParams.set("error", error as string);
+            if (pendingAuth.state) {
+              redirectUrl.searchParams.set("state", pendingAuth.state);
+            }
+            res.redirect(redirectUrl.toString());
+            return;
+          }
+        }
+      }
+
+      // Fallback: no state or lookup failed — can't redirect
       res.status(400).json({
         success: false,
         error: { code: "SN_OAUTH_ERROR", message: `ServiceNow OAuth error: ${error}` },

@@ -195,7 +195,31 @@ describe("createOAuthRouter", () => {
     expect(response.body.error.code).toBe("INVALID_CALLBACK");
   });
 
-  it("returns SN_OAUTH_ERROR when ServiceNow sends error to sn-callback", async () => {
+  it("redirects error back to MCP client when SN sends error with state", async () => {
+    tokenStore.getSnState.mockResolvedValue({ pendingAuthId: "pending-1" });
+    tokenStore.getPendingAuth.mockResolvedValue({
+      clientId: "mcp-client-1",
+      redirectUri: "http://client.example.com/callback",
+      codeChallenge: "challenge123",
+      state: "mcp-client-state",
+      scopes: [],
+    });
+    tokenStore.deletePendingAuth.mockResolvedValue(undefined);
+
+    const app = createTestApp();
+
+    const response = await request(app)
+      .get("/oauth/sn-callback?error=access_denied&state=sn-state-1")
+      .expect(302);
+
+    const location = response.headers.location as string;
+    expect(location).toContain("http://client.example.com/callback");
+    expect(location).toContain("error=access_denied");
+    expect(location).toContain("state=mcp-client-state");
+    expect(tokenStore.deletePendingAuth).toHaveBeenCalledWith("pending-1");
+  });
+
+  it("returns SN_OAUTH_ERROR JSON when SN sends error without state", async () => {
     const app = createTestApp();
 
     const response = await request(app)

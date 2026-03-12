@@ -200,17 +200,33 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
   }
 
   async revokeToken(
-    _client: OAuthClientInformationFull,
+    client: OAuthClientInformationFull,
     request: OAuthTokenRevocationRequest
   ): Promise<void> {
     const { token, token_type_hint } = request;
 
     if (token_type_hint === "refresh_token") {
+      const data = await this.tokenStore.getMcpRefreshToken(token);
+      if (data && data.clientId !== client.client_id) {
+        throw new InvalidGrantError("Token was not issued to this client");
+      }
       await this.tokenStore.deleteMcpRefreshToken(token);
     } else if (token_type_hint === "access_token") {
+      const data = await this.tokenStore.getMcpToken(token);
+      if (data && data.clientId !== client.client_id) {
+        throw new InvalidGrantError("Token was not issued to this client");
+      }
       await this.tokenStore.deleteMcpToken(token);
     } else {
-      // Try both
+      // No hint — check both types, verify ownership if found
+      const accessData = await this.tokenStore.getMcpToken(token);
+      if (accessData && accessData.clientId !== client.client_id) {
+        throw new InvalidGrantError("Token was not issued to this client");
+      }
+      const refreshData = await this.tokenStore.getMcpRefreshToken(token);
+      if (refreshData && refreshData.clientId !== client.client_id) {
+        throw new InvalidGrantError("Token was not issued to this client");
+      }
       await this.tokenStore.deleteMcpToken(token);
       await this.tokenStore.deleteMcpRefreshToken(token);
     }
