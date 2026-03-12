@@ -155,10 +155,21 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
       throw new InvalidGrantError("ServiceNow credentials expired. Re-authentication required.");
     }
 
+    const grantedScopes = refreshData.scopes ?? [];
+    if (scopes) {
+      const grantedScopeSet = new Set(grantedScopes);
+      const hasEscalatedScope = scopes.some((scope) => !grantedScopeSet.has(scope));
+      if (hasEscalatedScope) {
+        throw new InvalidGrantError(
+          "Requested scopes exceed scopes granted to this refresh token"
+        );
+      }
+    }
+
     // Generate new access token
     const newAccessToken = crypto.randomBytes(32).toString("hex");
     const expiresAt = Math.floor(Date.now() / 1000) + MCP_ACCESS_TOKEN_TTL;
-    const effectiveScopes = scopes ?? refreshData.scopes;
+    const effectiveScopes = scopes ?? grantedScopes;
 
     await this.tokenStore.storeMcpToken(newAccessToken, {
       userSysId: refreshData.userSysId,

@@ -203,7 +203,47 @@ describe("ServiceNowOAuthProvider", () => {
       expect(tokens.access_token).toBeTruthy();
       expect(tokens.token_type).toBe("Bearer");
       expect(tokens.refresh_token).toBe("refresh-123");
-      expect(tokenStore.storeMcpToken).toHaveBeenCalled();
+      expect(tokenStore.storeMcpToken).toHaveBeenCalledWith(
+        tokens.access_token,
+        expect.objectContaining({ scopes: ["read"] }),
+        3600
+      );
+    });
+
+    it("allows narrowing requested scopes to a subset", async () => {
+      tokenStore.getMcpRefreshToken.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "client-1",
+        scopes: ["read", "write"],
+      });
+      tokenStore.getToken.mockResolvedValue({ access_token: "sn-token" });
+
+      const tokens = await provider.exchangeRefreshToken(
+        matchingClient,
+        "refresh-123",
+        ["read"]
+      );
+
+      expect(tokenStore.storeMcpToken).toHaveBeenCalledWith(
+        tokens.access_token,
+        expect.objectContaining({ scopes: ["read"] }),
+        3600
+      );
+    });
+
+    it("rejects requested scopes that exceed refresh-token scopes", async () => {
+      tokenStore.getMcpRefreshToken.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "client-1",
+        scopes: ["read"],
+      });
+      tokenStore.getToken.mockResolvedValue({ access_token: "sn-token" });
+
+      await expect(
+        provider.exchangeRefreshToken(matchingClient, "refresh-123", ["read", "write"])
+      ).rejects.toThrow("Requested scopes exceed scopes granted to this refresh token");
+
+      expect(tokenStore.storeMcpToken).not.toHaveBeenCalled();
     });
 
     it("throws when refresh token not found", async () => {
