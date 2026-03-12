@@ -28,7 +28,8 @@
 - Never log raw reconnect tokens; pino redact config guards this as defense-in-depth.
 
 ## Documentation
-- Keep `README.md` aligned when adding or changing features, endpoints, config, or behavior — but keep it concise; don't overcrowd it.
+- Keep `README.md` aligned when adding or changing features, endpoints, config, or behavior — but keep it concise; delegate details to `docs/`.
+- When adding tools, update `docs/tools/` with the new tool documentation.
 
 ## Validation Commands
 - Build: `npm run build`
