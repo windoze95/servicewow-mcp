@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   validateSysId,
   validateIncidentNumber,
+  validateIOVariable,
   validateState,
   validatePriority,
   sanitizeUpdatePayload,
@@ -38,6 +39,22 @@ describe("validators", () => {
       expect(validateIncidentNumber("INC123")).toBe(false); // too few digits
       expect(validateIncidentNumber("CHG0012345")).toBe(false);
       expect(validateIncidentNumber("inc0012345")).toBe(false); // lowercase
+    });
+  });
+
+  describe("validateIOVariable", () => {
+    it("should accept valid IO:{sys_id} format", () => {
+      expect(validateIOVariable("IO:0123456789abcdef0123456789abcdef")).toBe(true);
+      expect(validateIOVariable("IO:ABCDEF0123456789abcdef0123456789")).toBe(true);
+    });
+
+    it("should reject invalid IO variable formats", () => {
+      expect(validateIOVariable("")).toBe(false);
+      expect(validateIOVariable("priority")).toBe(false);
+      expect(validateIOVariable("IO:abc123")).toBe(false);
+      expect(validateIOVariable("io:0123456789abcdef0123456789abcdef")).toBe(false);
+      expect(validateIOVariable("0123456789abcdef0123456789abcdef")).toBe(false);
+      expect(validateIOVariable("IO:")).toBe(false);
     });
   });
 

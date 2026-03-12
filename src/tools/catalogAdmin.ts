@@ -14,7 +14,7 @@ import type {
   CatalogUIPolicyAction,
   CatalogItem,
 } from "../servicenow/types.js";
-import { validateSysId, sanitizeUpdatePayload } from "../utils/validators.js";
+import { validateSysId, validateIOVariable, sanitizeUpdatePayload } from "../utils/validators.js";
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -729,6 +729,18 @@ export function registerCatalogAdminTools(
           };
         }
 
+        // Validate IO:{sys_id} format for cat_variable when provided
+        if (args.cat_variable && !validateIOVariable(args.cat_variable)) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "Invalid cat_variable format. Must be IO:{32-character hex sys_id} (e.g. IO:abc123def456...).",
+            },
+          };
+        }
+
         if (args.cat_item && !validateSysId(args.cat_item)) {
           return {
             success: false,
@@ -986,6 +998,17 @@ export function registerCatalogAdminTools(
               code: "VALIDATION_ERROR",
               message:
                 "Invalid ui_policy sys_id format. Must be a 32-character hex string.",
+            },
+          };
+        }
+
+        if (!validateIOVariable(args.catalog_variable)) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "Invalid catalog_variable format. Must be IO:{32-character hex sys_id} (e.g. IO:abc123def456...).",
             },
           };
         }

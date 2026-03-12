@@ -554,7 +554,7 @@ describe("registerCatalogAdminTools", () => {
       cat_item: validSysId,
       type: "onChange",
       script: "function onChange(control, oldValue, newValue) {}",
-      cat_variable: "IO:abc123",
+      cat_variable: `IO:${validSysId}`,
       ui_type: "All",
       active: true,
       applies_catalog: true,
@@ -568,7 +568,7 @@ describe("registerCatalogAdminTools", () => {
     expect(body.script).toBe(
       "function onChange(control, oldValue, newValue) {}"
     );
-    expect(body.cat_variable).toBe("IO:abc123");
+    expect(body.cat_variable).toBe(`IO:${validSysId}`);
     expect(result.success).toBe(true);
     expect(result.data.self_link).toContain("catalog_script_client.do");
   });
@@ -670,6 +670,23 @@ describe("registerCatalogAdminTools", () => {
     expect(result.success).toBe(false);
     expect(result.error.code).toBe("VALIDATION_ERROR");
     expect(result.error.message).toContain("cat_variable is required");
+    expect(snClient.post).not.toHaveBeenCalled();
+  });
+
+  it("create_catalog_client_script rejects invalid cat_variable format", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.create_catalog_client_script({
+      name: "Bad format",
+      cat_item: validSysId,
+      type: "onChange",
+      script: "function onChange() {}",
+      cat_variable: "priority",
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("Invalid cat_variable format");
     expect(snClient.post).not.toHaveBeenCalled();
   });
 
@@ -797,14 +814,14 @@ describe("registerCatalogAdminTools", () => {
         result: {
           sys_id: validSysId,
           ui_policy: validSysId,
-          catalog_variable: "IO:var123",
+          catalog_variable: `IO:${validSysId}`,
         },
       },
     });
 
     const result = (await handlers.create_catalog_ui_policy_action({
       ui_policy: validSysId,
-      catalog_variable: "IO:var123",
+      catalog_variable: `IO:${validSysId}`,
       visible: "true",
       mandatory: "false",
       disabled: "Leave alone",
@@ -813,7 +830,7 @@ describe("registerCatalogAdminTools", () => {
 
     const body = snClient.post.mock.calls[0][1];
     expect(body.ui_policy).toBe(validSysId);
-    expect(body.catalog_variable).toBe("IO:var123");
+    expect(body.catalog_variable).toBe(`IO:${validSysId}`);
     expect(body.visible).toBe("true");
     expect(body.mandatory).toBe("false");
     expect(body.disabled).toBe("Leave alone");
@@ -827,11 +844,25 @@ describe("registerCatalogAdminTools", () => {
 
     const result = (await handlers.create_catalog_ui_policy_action({
       ui_policy: "bad",
-      catalog_variable: "IO:var123",
+      catalog_variable: `IO:${validSysId}`,
     })) as any;
 
     expect(result.success).toBe(false);
     expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(snClient.post).not.toHaveBeenCalled();
+  });
+
+  it("create_catalog_ui_policy_action rejects invalid catalog_variable format", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.create_catalog_ui_policy_action({
+      ui_policy: validSysId,
+      catalog_variable: "some_variable_name",
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("Invalid catalog_variable format");
     expect(snClient.post).not.toHaveBeenCalled();
   });
 });
