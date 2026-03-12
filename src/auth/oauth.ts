@@ -158,10 +158,16 @@ export function createOAuthRouter(
       );
       // Clean up orphaned pending auth (snState already consumed)
       await tokenStore.deletePendingAuth(snStateData.pendingAuthId);
-      res.status(500).json({
-        success: false,
-        error: { code: "TOKEN_EXCHANGE_FAILED", message: "Failed to exchange ServiceNow authorization code" },
-      });
+
+      // Redirect the error back to the MCP client so it gets a
+      // deterministic OAuth error instead of hanging on a JSON 500.
+      const redirectUrl = new URL(pendingAuth.redirectUri);
+      redirectUrl.searchParams.set("error", "server_error");
+      redirectUrl.searchParams.set("error_description", "Failed to exchange ServiceNow authorization code");
+      if (pendingAuth.state) {
+        redirectUrl.searchParams.set("state", pendingAuth.state);
+      }
+      res.redirect(redirectUrl.toString());
     }
   });
 

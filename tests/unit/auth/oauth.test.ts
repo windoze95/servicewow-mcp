@@ -328,13 +328,13 @@ describe("createOAuthRouter", () => {
     expect(location).toContain("code=");
   });
 
-  it("returns TOKEN_EXCHANGE_FAILED and cleans up pending auth when SN token exchange fails", async () => {
+  it("redirects error to MCP client and cleans up pending auth when SN token exchange fails", async () => {
     tokenStore.getSnState.mockResolvedValue({ pendingAuthId: "pending-1" });
     tokenStore.getPendingAuth.mockResolvedValue({
       clientId: "mcp-client-1",
       redirectUri: "http://client.example.com/callback",
       codeChallenge: "challenge123",
-      state: "state",
+      state: "mcp-client-state",
       scopes: [],
     });
     tokenStore.deletePendingAuth.mockResolvedValue(undefined);
@@ -346,9 +346,38 @@ describe("createOAuthRouter", () => {
     const app = createTestApp();
     const response = await request(app)
       .get("/oauth/sn-callback?code=bad&state=valid-state")
-      .expect(500);
+      .expect(302);
 
-    expect(response.body.error.code).toBe("TOKEN_EXCHANGE_FAILED");
+    const location = response.headers.location as string;
+    expect(location).toContain("http://client.example.com/callback");
+    expect(location).toContain("error=server_error");
+    expect(location).toContain("error_description=");
+    expect(location).toContain("state=mcp-client-state");
     expect(tokenStore.deletePendingAuth).toHaveBeenCalledWith("pending-1");
+  });
+
+  it("redirects error without state when pending auth has no state", async () => {
+    tokenStore.getSnState.mockResolvedValue({ pendingAuthId: "pending-2" });
+    tokenStore.getPendingAuth.mockResolvedValue({
+      clientId: "mcp-client-1",
+      redirectUri: "http://client.example.com/callback",
+      codeChallenge: "challenge123",
+      scopes: [],
+    });
+    tokenStore.deletePendingAuth.mockResolvedValue(undefined);
+
+    axiosMocks.post.mockRejectedValue({
+      response: { status: 500, data: "upstream error" },
+    });
+
+    const app = createTestApp();
+    const response = await request(app)
+      .get("/oauth/sn-callback?code=bad&state=valid-state")
+      .expect(302);
+
+    const location = response.headers.location as string;
+    expect(location).toContain("error=server_error");
+    expect(location).not.toContain("state=");
+    expect(tokenStore.deletePendingAuth).toHaveBeenCalledWith("pending-2");
   });
 });
