@@ -22,6 +22,10 @@ describe("createOAuthRouter", () => {
     getOAuthState: vi.fn(),
     storeToken: vi.fn(),
     storeSessionMapping: vi.fn(),
+    getSnState: vi.fn(),
+    getPendingAuth: vi.fn(),
+    deletePendingAuth: vi.fn(),
+    storeAuthCode: vi.fn(),
   };
 
   const config = {
@@ -29,6 +33,7 @@ describe("createOAuthRouter", () => {
     SERVICENOW_CLIENT_ID: "client-id",
     SERVICENOW_CLIENT_SECRET: "client-secret",
     OAUTH_REDIRECT_URI: "http://localhost:3001/oauth/callback",
+    SN_CALLBACK_URI: "http://localhost:8080/oauth/sn-callback",
   };
 
   function createTestApp() {
@@ -178,5 +183,146 @@ describe("createOAuthRouter", () => {
         message: "Failed to exchange authorization code for tokens",
       },
     });
+  });
+
+  // --- /oauth/sn-callback (SDK flow) tests ---
+
+  it("returns INVALID_CALLBACK when sn-callback is missing code/state", async () => {
+    const app = createTestApp();
+
+    const response = await request(app).get("/oauth/sn-callback").expect(400);
+
+    expect(response.body.error.code).toBe("INVALID_CALLBACK");
+  });
+
+  it("returns SN_OAUTH_ERROR when ServiceNow sends error to sn-callback", async () => {
+    const app = createTestApp();
+
+    const response = await request(app)
+      .get("/oauth/sn-callback?error=access_denied")
+      .expect(400);
+
+    expect(response.body.error.code).toBe("SN_OAUTH_ERROR");
+  });
+
+  it("returns INVALID_STATE when sn_state not found", async () => {
+    tokenStore.getSnState.mockResolvedValue(null);
+    const app = createTestApp();
+
+    const response = await request(app)
+      .get("/oauth/sn-callback?code=abc&state=badstate")
+      .expect(400);
+
+    expect(response.body.error.code).toBe("INVALID_STATE");
+  });
+
+  it("returns EXPIRED_AUTH when pending auth expired", async () => {
+    tokenStore.getSnState.mockResolvedValue({ pendingAuthId: "pending-1" });
+    tokenStore.getPendingAuth.mockResolvedValue(null);
+    const app = createTestApp();
+
+    const response = await request(app)
+      .get("/oauth/sn-callback?code=abc&state=valid-state")
+      .expect(400);
+
+    expect(response.body.error.code).toBe("EXPIRED_AUTH");
+  });
+
+  it("exchanges SN code, stores token, generates auth code, and redirects to client", async () => {
+    tokenStore.getSnState.mockResolvedValue({ pendingAuthId: "pending-1" });
+    tokenStore.getPendingAuth.mockResolvedValue({
+      clientId: "mcp-client-1",
+      redirectUri: "http://client.example.com/callback",
+      codeChallenge: "challenge123",
+      state: "mcp-client-state",
+      scopes: ["read"],
+    });
+    tokenStore.storeToken.mockResolvedValue(undefined);
+    tokenStore.storeAuthCode.mockResolvedValue(undefined);
+    tokenStore.deletePendingAuth.mockResolvedValue(undefined);
+
+    axiosMocks.post.mockResolvedValue({
+      data: {
+        access_token: "sn-access",
+        refresh_token: "sn-refresh",
+        expires_in: 1800,
+      },
+    });
+
+    axiosMocks.get.mockResolvedValue({
+      data: {
+        result: [
+          {
+            sys_id: "user-sys-id-123",
+            user_name: "jane.doe",
+            name: "Jane Doe",
+          },
+        ],
+      },
+    });
+
+    const app = createTestApp();
+    const response = await request(app)
+      .get("/oauth/sn-callback?code=sn-auth-code&state=sn-state-1")
+      .expect(302);
+
+    // Verify SN token exchange
+    expect(axiosMocks.post).toHaveBeenCalledWith(
+      "https://example.service-now.com/oauth_token.do",
+      expect.stringContaining("grant_type=authorization_code"),
+      expect.any(Object)
+    );
+
+    // Verify SN token stored
+    expect(tokenStore.storeToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        access_token: "sn-access",
+        refresh_token: "sn-refresh",
+        user_sys_id: "user-sys-id-123",
+        user_name: "jane.doe",
+      })
+    );
+
+    // Verify our auth code was stored
+    expect(tokenStore.storeAuthCode).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        userSysId: "user-sys-id-123",
+        clientId: "mcp-client-1",
+        codeChallenge: "challenge123",
+      }),
+      300
+    );
+
+    // Verify pending auth cleaned up
+    expect(tokenStore.deletePendingAuth).toHaveBeenCalledWith("pending-1");
+
+    // Verify redirect to MCP client
+    const location = response.headers.location as string;
+    expect(location).toContain("http://client.example.com/callback");
+    expect(location).toContain("state=mcp-client-state");
+    expect(location).toContain("code=");
+  });
+
+  it("returns TOKEN_EXCHANGE_FAILED when SN token exchange fails in sn-callback", async () => {
+    tokenStore.getSnState.mockResolvedValue({ pendingAuthId: "pending-1" });
+    tokenStore.getPendingAuth.mockResolvedValue({
+      clientId: "mcp-client-1",
+      redirectUri: "http://client.example.com/callback",
+      codeChallenge: "challenge123",
+      state: "state",
+      scopes: [],
+    });
+
+    axiosMocks.post.mockRejectedValue({
+      response: { status: 400, data: { error: "invalid_grant" } },
+    });
+
+    const app = createTestApp();
+    const response = await request(app)
+      .get("/oauth/sn-callback?code=bad&state=valid-state")
+      .expect(500);
+
+    expect(response.body.error.code).toBe("TOKEN_EXCHANGE_FAILED");
   });
 });

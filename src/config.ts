@@ -28,10 +28,20 @@ const configSchema = z.object({
     .string()
     .min(1, "ALLOWED_ORIGINS is required — set to a comma-separated list of allowed origins (e.g. https://claude.ai)")
     .transform((s) => s.split(",").map((o) => o.trim())),
+  MCP_SERVER_URL: z
+    .string()
+    .url()
+    .transform((url) => url.replace(/\/+$/, ""))
+    .optional(),
+  SN_CALLBACK_URI: z.string().url().optional(),
 }).refine(
   (data) => (!data.TLS_CERT_PATH && !data.TLS_KEY_PATH) || (!!data.TLS_CERT_PATH && !!data.TLS_KEY_PATH),
   { message: "TLS_CERT_PATH and TLS_KEY_PATH must both be set or both omitted", path: ["TLS_CERT_PATH"] }
-);
+).transform((data) => ({
+  ...data,
+  MCP_SERVER_URL: data.MCP_SERVER_URL ?? `http://localhost:${data.MCP_PORT}`,
+  SN_CALLBACK_URI: data.SN_CALLBACK_URI ?? `${data.MCP_SERVER_URL ?? `http://localhost:${data.MCP_PORT}`}/oauth/sn-callback`,
+}));
 
 export type Config = z.infer<typeof configSchema>;
 

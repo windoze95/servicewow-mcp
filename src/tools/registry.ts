@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type { Redis } from "ioredis";
 import { type Config } from "../config.js";
 import { TokenStore } from "../auth/tokenStore.js";
@@ -43,15 +44,25 @@ export function registerAllTools(
   const refresher = new TokenRefresher(config, tokenStore, redis);
   const rateLimiter = new RateLimiter(redis, config.RATE_LIMIT_PER_USER);
 
-  const getContext = async (): Promise<ToolContext> => {
-    const sessionId = getSessionId();
-    if (!sessionId) {
-      throw new AuthRequiredError();
+  const getContext = async (extra?: { authInfo?: AuthInfo }): Promise<ToolContext> => {
+    let userSysId: string | null = null;
+
+    // Try bearer auth first (SDK OAuth flow)
+    const authInfo = extra?.authInfo;
+    if (authInfo?.extra?.userSysId) {
+      userSysId = authInfo.extra.userSysId as string;
     }
 
-    const userSysId = await tokenStore.getUserForSession(sessionId);
+    // Fall back to session-based lookup (backward compat)
     if (!userSysId) {
-      throw new AuthRequiredError();
+      const sessionId = getSessionId();
+      if (!sessionId) {
+        throw new AuthRequiredError();
+      }
+      userSysId = await tokenStore.getUserForSession(sessionId);
+      if (!userSysId) {
+        throw new AuthRequiredError();
+      }
     }
 
     // Check rate limit
@@ -88,9 +99,9 @@ export function registerAllTools(
     return `${config.OAUTH_REDIRECT_URI.replace("/oauth/callback", "/oauth/authorize")}?${params.toString()}`;
   };
 
-  const safeGetContext = async (): Promise<ToolContext> => {
+  const safeGetContext = async (extra?: { authInfo?: AuthInfo }): Promise<ToolContext> => {
     try {
-      return await getContext();
+      return await getContext(extra);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
         const authUrl = getAuthUrl();
@@ -110,9 +121,9 @@ export function registerAllTools(
   const wrapHandler = <T>(
     handler: (ctx: ToolContext, args: T) => Promise<unknown>
   ) => {
-    return async (args: T) => {
+    return async (args: T, extra?: { authInfo?: AuthInfo }) => {
       try {
-        const ctx = await safeGetContext();
+        const ctx = await safeGetContext(extra);
         const startTime = Date.now();
         const result = await handler(ctx, args);
         const duration = Date.now() - startTime;

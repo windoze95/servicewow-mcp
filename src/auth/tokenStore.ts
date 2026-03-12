@@ -11,6 +11,39 @@ export interface StoredToken {
   display_name: string;
 }
 
+export interface PendingAuthData {
+  clientId: string;
+  redirectUri: string;
+  codeChallenge: string;
+  state?: string;
+  scopes?: string[];
+}
+
+export interface SnStateData {
+  pendingAuthId: string;
+}
+
+export interface AuthCodeData {
+  userSysId: string;
+  clientId: string;
+  codeChallenge: string;
+  redirectUri: string;
+  scopes: string[];
+}
+
+export interface McpTokenData {
+  userSysId: string;
+  clientId: string;
+  scopes: string[];
+  expiresAt: number; // Unix timestamp seconds
+}
+
+export interface McpRefreshData {
+  userSysId: string;
+  clientId: string;
+  scopes: string[];
+}
+
 /** Session TTL for reconnect-token sessions (7 days) vs default 24h. */
 export const RECONNECT_SESSION_TTL = 604800;
 
@@ -167,5 +200,94 @@ export class TokenStore {
     if (!data) return null;
     await this.redis.del(key); // one-time use
     return JSON.parse(data);
+  }
+
+  // --- MCP OAuth SDK support ---
+
+  async storePendingAuth(id: string, data: PendingAuthData, ttlSeconds: number): Promise<void> {
+    const key = `pending_auth:${id}`;
+    await this.redis.set(key, JSON.stringify(data), "EX", ttlSeconds);
+  }
+
+  async getPendingAuth(id: string): Promise<PendingAuthData | null> {
+    const key = `pending_auth:${id}`;
+    const raw = await this.redis.get(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }
+
+  async deletePendingAuth(id: string): Promise<void> {
+    await this.redis.del(`pending_auth:${id}`);
+  }
+
+  async storeSnState(state: string, data: SnStateData, ttlSeconds: number): Promise<void> {
+    const key = `sn_state:${state}`;
+    await this.redis.set(key, JSON.stringify(data), "EX", ttlSeconds);
+  }
+
+  async getSnState(state: string): Promise<SnStateData | null> {
+    const key = `sn_state:${state}`;
+    const raw = await this.redis.get(key);
+    if (!raw) return null;
+    await this.redis.del(key); // one-time use
+    return JSON.parse(raw);
+  }
+
+  async storeAuthCode(code: string, data: AuthCodeData, ttlSeconds: number): Promise<void> {
+    const key = `auth_code:${code}`;
+    await this.redis.set(key, JSON.stringify(data), "EX", ttlSeconds);
+  }
+
+  async getAuthCode(code: string): Promise<AuthCodeData | null> {
+    const key = `auth_code:${code}`;
+    const raw = await this.redis.get(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }
+
+  async deleteAuthCode(code: string): Promise<void> {
+    await this.redis.del(`auth_code:${code}`);
+  }
+
+  async storeMcpToken(token: string, data: McpTokenData, ttlSeconds: number): Promise<void> {
+    const key = `mcp_token:${token}`;
+    await this.redis.set(key, JSON.stringify(data), "EX", ttlSeconds);
+  }
+
+  async getMcpToken(token: string): Promise<McpTokenData | null> {
+    const key = `mcp_token:${token}`;
+    const raw = await this.redis.get(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }
+
+  async deleteMcpToken(token: string): Promise<void> {
+    await this.redis.del(`mcp_token:${token}`);
+  }
+
+  async storeMcpRefreshToken(token: string, data: McpRefreshData, ttlSeconds: number): Promise<void> {
+    const key = `mcp_refresh:${token}`;
+    await this.redis.set(key, JSON.stringify(data), "EX", ttlSeconds);
+  }
+
+  async getMcpRefreshToken(token: string): Promise<McpRefreshData | null> {
+    const key = `mcp_refresh:${token}`;
+    const raw = await this.redis.get(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }
+
+  async deleteMcpRefreshToken(token: string): Promise<void> {
+    await this.redis.del(`mcp_refresh:${token}`);
+  }
+
+  async storeOAuthClient(clientId: string, data: string, ttlSeconds: number): Promise<void> {
+    const key = `oauth_client:${clientId}`;
+    await this.redis.set(key, data, "EX", ttlSeconds);
+  }
+
+  async getOAuthClient(clientId: string): Promise<string | null> {
+    const key = `oauth_client:${clientId}`;
+    return this.redis.get(key);
   }
 }

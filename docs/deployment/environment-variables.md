@@ -24,7 +24,9 @@ Full configuration reference. All variables are validated at startup by Zod (`sr
 | `NODE_ENV` | `development` | `development`, `production`, or `test` |
 | `LOG_LEVEL` | `info` | Pino log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace` |
 | `RATE_LIMIT_PER_USER` | `60` | Maximum requests per minute per user. See [Rate Limiting](../security/rate-limiting.md). |
-| `RECONNECT_TOKEN_TTL` | `8640000` | Reconnect token TTL in seconds (default 100 days). See [Reconnect Tokens](../auth/reconnect-tokens.md). |
+| `RECONNECT_TOKEN_TTL` | `8640000` | Reconnect token TTL in seconds (default 100 days). Deprecated — use SDK OAuth refresh tokens. |
+| `MCP_SERVER_URL` | `http://localhost:{MCP_PORT}` | Externally-reachable server URL. Used as the OAuth issuer URL. Must be HTTPS in production (localhost exempt). |
+| `SN_CALLBACK_URI` | `{MCP_SERVER_URL}/oauth/sn-callback` | Redirect URI for the ServiceNow leg of the OAuth flow. Must match ServiceNow OAuth app configuration. |
 | `TLS_CERT_PATH` | — | Path to TLS certificate. Must pair with `TLS_KEY_PATH`. See [Native TLS](./native-tls.md). |
 | `TLS_KEY_PATH` | — | Path to TLS private key. Must pair with `TLS_CERT_PATH`. |
 | `CADDY_DOMAIN` | — | Domain for Caddy auto-TLS (used with `docker-compose.caddy.yml`). See [Docker (Caddy)](./docker-caddy.md). |
@@ -37,6 +39,8 @@ Full configuration reference. All variables are validated at startup by Zod (`sr
 - `ALLOWED_ORIGINS` must not be empty
 - `TLS_CERT_PATH` and `TLS_KEY_PATH` must both be set or both omitted
 - `MCP_PORT`, `RATE_LIMIT_PER_USER`, `RECONNECT_TOKEN_TTL` must be positive integers
+- `MCP_SERVER_URL` must be a valid URL if set
+- `SN_CALLBACK_URI` must be a valid URL if set
 
 ## Example `.env`
 
@@ -46,8 +50,12 @@ SERVICENOW_INSTANCE_URL=https://myorg.service-now.com
 SERVICENOW_CLIENT_ID=abc123
 SERVICENOW_CLIENT_SECRET=secret456
 
-# OAuth
+# OAuth (legacy — still needed for backward compat)
 OAUTH_REDIRECT_URI=https://mcp.example.com/oauth/callback
+
+# MCP OAuth (SDK flow)
+MCP_SERVER_URL=https://mcp.example.com
+SN_CALLBACK_URI=https://mcp.example.com/oauth/sn-callback
 
 # Security
 TOKEN_ENCRYPTION_KEY=<base64 key from npm run generate-key>

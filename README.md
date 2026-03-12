@@ -28,11 +28,12 @@ Result: safer automation, cleaner compliance, fewer permission hacks.
 
 ## 🔥 Core Capabilities
 
-- Per-user OAuth 2.0 Authorization Code flow + refresh
+- **MCP-spec OAuth 2.0** with PKCE — clients like Claude Code auto-discover and re-auth natively
+- Per-user OAuth delegation to ServiceNow (Authorization Code flow + refresh)
 - AES-256-GCM encrypted token storage in Redis
 - Streamable HTTP MCP transport with per-session lifecycle
+- Bearer token auth on every MCP request (`Authorization: Bearer`)
 - Tool-level identity protections for sensitive operations
-- Optional reconnect tokens for session persistence across server restarts
 - Per-user rate limiting via Redis token bucket
 - Input validation + normalized error responses
 - CI-enforced build + test + coverage gate
@@ -84,7 +85,7 @@ npm run test:coverage
 
 ---
 
-## 🖥️ Client Config (Claude Desktop)
+## 🖥️ Client Config (Claude Desktop / Claude Code)
 
 ```json
 {
@@ -97,7 +98,9 @@ npm run test:coverage
 }
 ```
 
-See [Client Configuration](./docs/api/client-configuration.md) for reconnect token and deployment-specific examples.
+MCP clients automatically discover the OAuth endpoints via `/.well-known/oauth-authorization-server` and handle PKCE-based authentication. No manual link-opening required.
+
+See [Client Configuration](./docs/api/client-configuration.md) for deployment-specific examples.
 
 ---
 
