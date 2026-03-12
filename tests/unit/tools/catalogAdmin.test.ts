@@ -53,9 +53,9 @@ describe("registerCatalogAdminTools", () => {
     vi.clearAllMocks();
   });
 
-  it("registers all 11 tools", () => {
+  it("registers all 12 tools", () => {
     const { server } = setup();
-    expect(server.tool).toHaveBeenCalledTimes(11);
+    expect(server.tool).toHaveBeenCalledTimes(12);
     const names = server.tool.mock.calls.map((c: unknown[]) => c[0]);
     expect(names).toEqual([
       "create_catalog_item",
@@ -67,6 +67,7 @@ describe("registerCatalogAdminTools", () => {
       "create_variable_set",
       "attach_variable_set",
       "create_catalog_client_script",
+      "update_catalog_client_script",
       "create_catalog_ui_policy",
       "create_catalog_ui_policy_action",
     ]);
@@ -688,6 +689,59 @@ describe("registerCatalogAdminTools", () => {
     expect(result.error.code).toBe("VALIDATION_ERROR");
     expect(result.error.message).toContain("Invalid cat_variable format");
     expect(snClient.post).not.toHaveBeenCalled();
+  });
+
+  // --- update_catalog_client_script ---
+
+  it("update_catalog_client_script patches and returns self_link", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.patch.mockResolvedValue({
+      data: { result: { sys_id: validSysId, name: "Deactivated script", active: "false" } },
+    });
+
+    const result = (await handlers.update_catalog_client_script({
+      sys_id: validSysId,
+      fields: { active: false },
+    })) as any;
+
+    expect(snClient.patch).toHaveBeenCalledWith(
+      `/api/now/table/catalog_script_client/${validSysId}`,
+      { active: false }
+    );
+    expect(result.success).toBe(true);
+    expect(result.data.self_link).toContain("catalog_script_client.do");
+  });
+
+  it("update_catalog_client_script strips readonly fields", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.patch.mockResolvedValue({
+      data: { result: { sys_id: validSysId } },
+    });
+
+    await handlers.update_catalog_client_script({
+      sys_id: validSysId,
+      fields: { active: false, sys_id: "hacked", sys_created_on: "x" },
+    });
+
+    expect(snClient.patch).toHaveBeenCalledWith(
+      `/api/now/table/catalog_script_client/${validSysId}`,
+      { active: false }
+    );
+  });
+
+  it("update_catalog_client_script returns VALIDATION_ERROR for invalid sys_id", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.update_catalog_client_script({
+      sys_id: "bad-id",
+      fields: { active: false },
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(snClient.patch).not.toHaveBeenCalled();
   });
 
   // --- create_catalog_ui_policy ---

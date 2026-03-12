@@ -801,6 +801,53 @@ export function registerCatalogAdminTools(
     )
   );
 
+  // update_catalog_client_script
+  server.tool(
+    "update_catalog_client_script",
+    "Update fields on an existing catalog client script.",
+    {
+      sys_id: z.string().describe("Client script sys_id"),
+      fields: z
+        .record(z.unknown())
+        .describe("Fields to update (e.g. { active: false })"),
+    },
+    wrapHandler(
+      async (
+        ctx: ToolContext,
+        args: { sys_id: string; fields: Record<string, unknown> }
+      ) => {
+        if (!validateSysId(args.sys_id)) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "Invalid sys_id format. Must be a 32-character hex string.",
+            },
+          };
+        }
+
+        const sanitized = sanitizeUpdatePayload(args.fields);
+
+        const { data } = await ctx.snClient.patch<
+          ServiceNowSingleResponse<CatalogClientScript>
+        >(`/api/now/table/catalog_script_client/${args.sys_id}`, sanitized);
+
+        return {
+          success: true,
+          data: {
+            ...data.result,
+            self_link: buildRecordUrl(
+              ctx.instanceUrl,
+              "catalog_script_client",
+              data.result.sys_id
+            ),
+          },
+        };
+      }
+    )
+  );
+
   // create_catalog_ui_policy
   server.tool(
     "create_catalog_ui_policy",

@@ -127,6 +127,15 @@ Create a client-side script (onChange/onLoad/onSubmit) for a catalog item or var
 
 See [Configure Client Script](../prompts/configure-client-script.md) for the full guide.
 
+## `update_catalog_client_script`
+
+Update fields on an existing catalog client script.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `sys_id` | string | Yes | Client script sys_id |
+| `fields` | object | Yes | Fields to update (e.g. `{ active: false }`) |
+
 ## `create_catalog_ui_policy`
 
 Create a UI policy (declarative show/hide/mandatory rules) for a catalog item or variable set.
