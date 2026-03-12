@@ -63,6 +63,24 @@ create_variable_choice({ question: var_priority_sys_id, text: "Medium", value: "
 create_variable_choice({ question: var_priority_sys_id, text: "Low",    value: "low",    order: 300 })
 \`\`\`
 
+### Step 4: Add Input Validation (optional)
+
+Use \`validate_regex\` on \`create_catalog_variable\` to enforce input format via a \`question_regex\` record — no client script needed.
+
+\`\`\`
+create_catalog_variable({
+  cat_item: item_sys_id,
+  name: "number_of_servers",
+  question_text: "Number of Servers",
+  type: "single_line_text",
+  mandatory: true,
+  order: 200,
+  validate_regex: "<question_regex_sys_id>",  // e.g. numeric-only regex
+})
+\`\`\`
+
+Reserve client scripts for complex validation logic (cross-field checks, async lookups). For simple format constraints (numeric, email, IP), \`validate_regex\` is simpler, faster, and declarative.
+
 ## Variable Type Quick Reference
 
 | Type Key | Code | Notes |
@@ -105,7 +123,8 @@ create_variable_choice({ question: var_priority_sys_id, text: "Low",    value: "
 - **Choices are separate calls**: \`select_box\` and \`multiple_choice\` variables have no inline choice option — use \`create_variable_choice\` for each.
 - **Container layout**: always use the pattern \`container_start\` → fields → \`container_split\` → fields → \`container_end\`. Missing any piece breaks the layout.
 - **Order collisions**: if two variables share the same order value, display order is unpredictable.
-- **Verify with list_catalog_variables**: after building, call \`list_catalog_variables({ cat_item: item_sys_id })\` to confirm all fields and their order.`,
+- **Verify with list_catalog_variables**: after building, call \`list_catalog_variables({ cat_item: item_sys_id })\` to confirm all fields and their order.
+- **Use \`validate_regex\` for format constraints** instead of client scripts — it's declarative, works on all UI types, and doesn't require JavaScript.`,
         },
       },
     ],
@@ -222,6 +241,14 @@ function configureCatalogClientScriptPrompt() {
 ## Overview
 
 Client scripts run JavaScript in the user's browser when interacting with catalog forms. Use \`create_catalog_client_script\` to create them.
+
+## Prefer validate_regex for Simple Validation
+
+Before writing a client script for input validation, consider using the \`validate_regex\` parameter on \`create_catalog_variable\` instead. It references a \`question_regex\` record and enforces format constraints declaratively.
+
+**Use \`validate_regex\` when**: enforcing simple format rules (numeric-only, email format, IP address, phone number patterns).
+
+**Use client scripts when**: you need cross-field validation, async lookups, dynamic option filtering, conditional logic, or custom error messages.
 
 ## Script Types and Function Signatures
 

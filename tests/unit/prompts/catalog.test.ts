@@ -73,6 +73,14 @@ describe("registerCatalogPrompts", () => {
       expect(text).toContain("list_catalog_variables");
     });
 
+    it("mentions validate_regex for input validation", () => {
+      const { handlers } = setup();
+      const text = handlers.build_catalog_form().messages[0].content.text;
+
+      expect(text).toContain("validate_regex");
+      expect(text).toContain("question_regex");
+    });
+
     it("includes the variable type reference table", () => {
       const { handlers } = setup();
       const text = handlers.build_catalog_form().messages[0].content.text;
@@ -127,6 +135,14 @@ describe("registerCatalogPrompts", () => {
       expect(text).toContain("onSubmit");
       expect(text).toContain("IO:");
       expect(text).toContain("g_form");
+    });
+
+    it("mentions validate_regex as preferred alternative", () => {
+      const { handlers } = setup();
+      const text = handlers.configure_catalog_client_script().messages[0].content.text;
+
+      expect(text).toContain("validate_regex");
+      expect(text).toContain("question_regex");
     });
 
     it("includes g_form API reference", () => {

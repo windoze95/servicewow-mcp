@@ -52,6 +52,9 @@ Create a form variable (field) on a catalog item.
 | `help_text` | string | No | Help text |
 | `hidden` | boolean | No | Hidden (default false) |
 | `read_only` | boolean | No | Read only (default false) |
+| `validate_regex` | string | No | Regex validation sys_id (`question_regex` record) for input format enforcement |
+
+> **Tip**: Use `validate_regex` for simple format constraints (numeric, email, IP) instead of writing client scripts. It's declarative, works on all UI types, and requires no JavaScript.
 
 ## `update_catalog_variable`
 
@@ -126,6 +129,15 @@ Create a client-side script (onChange/onLoad/onSubmit) for a catalog item or var
 | `applies_req_item` | boolean | No | Applies on requested items (default false) |
 
 See [Configure Client Script](../prompts/configure-client-script.md) for the full guide.
+
+## `update_catalog_client_script`
+
+Update fields on an existing catalog client script.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `sys_id` | string | Yes | Client script sys_id |
+| `fields` | object | Yes | Fields to update (e.g. `{ active: false }`) |
 
 ## `create_catalog_ui_policy`
 
