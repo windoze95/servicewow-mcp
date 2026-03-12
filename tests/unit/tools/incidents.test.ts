@@ -164,7 +164,6 @@ describe("registerIncidentTools", () => {
       caller_id: userSysId,
       impact: 2,
       urgency: 2,
-      priority: 3,
     });
     expect(result.success).toBe(true);
     expect(result.data.self_link).toBe(
@@ -299,7 +298,7 @@ describe("registerIncidentTools", () => {
     expect(body.subcategory).toBe("Email");
     expect(body.assignment_group).toBe("IT");
     expect(body.cmdb_ci).toBe("Mail Server");
-    expect(body.priority).toBe(2);
+    expect(body.priority).toBeUndefined();
   });
 
   it("update_incident returns VALIDATION_ERROR for invalid identifier", async () => {

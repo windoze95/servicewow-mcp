@@ -283,11 +283,6 @@ export function registerChangeRequestTools(
         if (args.start_date) body.start_date = args.start_date;
         if (args.end_date) body.end_date = args.end_date;
 
-        // Calculate priority from impact + urgency
-        if (args.impact && args.urgency) {
-          body.priority = args.impact + args.urgency - 1;
-        }
-
         const { data } = await ctx.snClient.post<
           ServiceNowSingleResponse<ChangeRequest>
         >("/api/now/table/change_request", body);

@@ -5,7 +5,6 @@ import {
   validateChangeNumber,
   validateIOVariable,
   validateState,
-  validatePriority,
   sanitizeUpdatePayload,
   READONLY_FIELDS,
 } from "../../../src/utils/validators.js";
@@ -88,21 +87,6 @@ describe("validators", () => {
       expect(validateState("")).toBe(false);
       expect(validateState("invalid")).toBe(false);
       expect(validateState("0")).toBe(false);
-    });
-  });
-
-  describe("validatePriority", () => {
-    it("should calculate priority correctly", () => {
-      expect(validatePriority(1, 1)).toBe(1);
-      expect(validatePriority(1, 2)).toBe(2);
-      expect(validatePriority(2, 2)).toBe(3);
-      expect(validatePriority(3, 3)).toBe(5);
-    });
-
-    it("should reject invalid ranges", () => {
-      expect(() => validatePriority(0, 1)).toThrow();
-      expect(() => validatePriority(1, 4)).toThrow();
-      expect(() => validatePriority(4, 1)).toThrow();
     });
   });
 

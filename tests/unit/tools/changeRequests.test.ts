@@ -230,7 +230,6 @@ describe("registerChangeRequestTools", () => {
       requested_by: userSysId,
       impact: 2,
       urgency: 2,
-      priority: 3,
     });
     expect(result.success).toBe(true);
     expect(result.data.self_link).toBe(
@@ -267,7 +266,7 @@ describe("registerChangeRequestTools", () => {
     expect(body.cmdb_ci).toBe("App Server");
     expect(body.start_date).toBe("2026-04-01T08:00:00Z");
     expect(body.end_date).toBe("2026-04-01T12:00:00Z");
-    expect(body.priority).toBe(2);
+    expect(body.priority).toBeUndefined();
   });
 
   // --- update_change_request ---

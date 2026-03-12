@@ -33,13 +33,6 @@ export function validateState(state: string): boolean {
   return validStates.includes(state);
 }
 
-export function validatePriority(impact: number, urgency: number): number {
-  if (impact < 1 || impact > 3 || urgency < 1 || urgency > 3) {
-    throw new Error("Impact and urgency must be between 1 and 3");
-  }
-  return impact + urgency - 1;
-}
-
 export const READONLY_FIELDS = new Set([
   "sys_id",
   "sys_created_on",
@@ -56,6 +49,8 @@ export const READONLY_FIELDS = new Set([
   // Identity fields — server-controlled at creation, must not be overwritten
   "caller_id",
   "requested_by",
+  // Priority is calculated by ServiceNow from impact/urgency
+  "priority",
 ]);
 
 export function sanitizeUpdatePayload(
