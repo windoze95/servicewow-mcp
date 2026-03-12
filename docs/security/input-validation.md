@@ -51,10 +51,6 @@ Validates against allowed incident states:
 - String values: `New`, `In Progress`, `On Hold`, `Resolved`, `Closed`, `Canceled`
 - Numeric equivalents: `1`, `2`, `3`, `6`, `7`, `8`
 
-### `validatePriority(impact: number, urgency: number): number`
-
-Validates impact and urgency are between 1 and 3, calculates priority as `impact + urgency - 1`.
-
 ## Payload Sanitization
 
 ### `sanitizeUpdatePayload(payload): Record<string, unknown>`
@@ -75,6 +71,9 @@ const READONLY_FIELDS = new Set([
   "number",
   "opened_at",
   "opened_by",
+  "caller_id",
+  "requested_by",
+  "priority",
 ]);
 ```
 
