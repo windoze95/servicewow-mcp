@@ -12,7 +12,7 @@ No shared service accounts. No ACL bypass. Full audit-trail fidelity.
 
 ---
 
-## Why This Exists
+## ⚡ Why This Exists
 
 Instead of funneling every request through a shared service account, this server executes actions as the actual human user.
 
@@ -26,7 +26,7 @@ Result: safer automation, cleaner compliance, fewer permission hacks.
 
 ---
 
-## Core Capabilities
+## 🔥 Core Capabilities
 
 - Per-user OAuth 2.0 Authorization Code flow + refresh
 - AES-256-GCM encrypted token storage in Redis
@@ -39,7 +39,7 @@ Result: safer automation, cleaner compliance, fewer permission hacks.
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 npm install
@@ -54,7 +54,7 @@ For full setup instructions including ServiceNow OAuth configuration, see the [G
 
 ---
 
-## Documentation
+## 📚 Documentation
 
 Comprehensive documentation lives in [`docs/`](./docs/README.md):
 
@@ -62,7 +62,7 @@ Comprehensive documentation lives in [`docs/`](./docs/README.md):
 - **[Architecture](./docs/architecture/README.md)** — System design, session lifecycle, request flow, Redis schema
 - **[Authentication](./docs/auth/README.md)** — OAuth flow, token storage, refresh, reconnect tokens
 - **[Security](./docs/security/README.md)** — Identity enforcement, input validation, rate limiting, error handling
-- **[Tools (35)](./docs/tools/README.md)** — All tools: incidents, change requests, users, knowledge, tasks, catalog, catalog admin, update sets
+- **[Tools (35)](./docs/tools/README.md)** — All tools: incidents, change requests, knowledge, update sets, and more
 - **[Prompts (4)](./docs/prompts/README.md)** — Guided workflows for catalog administration
 - **[HTTP API](./docs/api/README.md)** — Endpoints and client configuration
 - **[Deployment](./docs/deployment/README.md)** — Docker, Caddy, native TLS, setup script, environment variables
@@ -71,7 +71,7 @@ Comprehensive documentation lives in [`docs/`](./docs/README.md):
 
 ---
 
-## Testing and Quality
+## ✅ Testing and Quality
 
 ```bash
 npm run build
@@ -84,7 +84,7 @@ npm run test:coverage
 
 ---
 
-## Client Config (Claude Desktop)
+## 🖥️ Client Config (Claude Desktop)
 
 ```json
 {
@@ -101,7 +101,7 @@ See [Client Configuration](./docs/api/client-configuration.md) for reconnect tok
 
 ---
 
-## Agent Instruction Files
+## 🤖 Agent Instruction Files
 
 - `AGENTS.md`
 - `CLAUDE.md`
