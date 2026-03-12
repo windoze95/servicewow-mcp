@@ -213,6 +213,7 @@ export function registerCatalogAdminTools(
       help_text: z.string().optional().describe("Help text"),
       hidden: z.boolean().optional().describe("Hidden (default false)"),
       read_only: z.boolean().optional().describe("Read only (default false)"),
+      validate_regex: z.string().optional().describe("Regex validation sys_id (question_regex record) for input format enforcement"),
     },
     wrapHandler(
       async (
@@ -230,6 +231,7 @@ export function registerCatalogAdminTools(
           help_text?: string;
           hidden?: boolean;
           read_only?: boolean;
+          validate_regex?: string;
         }
       ) => {
         if (!validateSysId(args.cat_item)) {
@@ -260,6 +262,7 @@ export function registerCatalogAdminTools(
         if (args.help_text !== undefined) body.help_text = args.help_text;
         if (args.hidden !== undefined) body.hidden = args.hidden;
         if (args.read_only !== undefined) body.read_only = args.read_only;
+        if (args.validate_regex !== undefined) body.validate_regex = args.validate_regex;
 
         const { data } = await ctx.snClient.post<
           ServiceNowSingleResponse<CatalogVariable>

@@ -63,7 +63,23 @@ create_variable_choice({ question: var_sys_id, text: "Medium", value: "medium", 
 create_variable_choice({ question: var_sys_id, text: "Low",    value: "low",    order: 300 })
 ```
 
-### Step 4: Verify
+### Step 4: Add Input Validation (optional)
+
+Use `validate_regex` on [`create_catalog_variable`](../tools/catalog-admin.md#create_catalog_variable) to enforce input format via a `question_regex` record — no client script needed.
+
+```
+create_catalog_variable({
+  cat_item: item_sys_id,
+  name: "number_of_servers",
+  question_text: "Number of Servers",
+  type: "single_line_text",
+  validate_regex: "<question_regex_sys_id>",
+})
+```
+
+Reserve client scripts for complex validation (cross-field checks, async lookups). For simple format constraints, `validate_regex` is simpler and declarative.
+
+### Step 5: Verify
 
 Call [`list_catalog_variables`](../tools/catalog-admin.md#list_catalog_variables) to confirm all fields and their order:
 

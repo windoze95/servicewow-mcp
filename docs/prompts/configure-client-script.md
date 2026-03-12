@@ -10,6 +10,14 @@ Guide for creating onChange/onLoad/onSubmit client scripts with the g_form API.
 
 Client scripts run JavaScript in the user's browser when interacting with catalog forms. Use [`create_catalog_client_script`](../tools/catalog-admin.md#create_catalog_client_script) to create them.
 
+## Prefer `validate_regex` for Simple Validation
+
+Before writing a client script for input validation, consider using the `validate_regex` parameter on [`create_catalog_variable`](../tools/catalog-admin.md#create_catalog_variable) instead. It references a `question_regex` record and enforces format constraints declaratively.
+
+**Use `validate_regex` when**: enforcing simple format rules (numeric-only, email format, IP address, phone number patterns).
+
+**Use client scripts when**: you need cross-field validation, async lookups, dynamic option filtering, conditional logic, or custom error messages.
+
 ## Script Types
 
 ### onChange

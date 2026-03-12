@@ -137,6 +137,7 @@ export interface CatalogVariable extends ServiceNowRecord {
   help_text?: string;
   hidden?: string;
   read_only?: string;
+  validate_regex?: string;
   variable_set?: string;
 }
 

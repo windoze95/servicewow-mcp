@@ -263,6 +263,26 @@ describe("registerCatalogAdminTools", () => {
     expect(snClient.post).not.toHaveBeenCalled();
   });
 
+  it("create_catalog_variable includes validate_regex when provided", async () => {
+    const { handlers, snClient } = setup();
+    const regexSysId = "aabbccddaabbccddaabbccddaabbccdd";
+
+    snClient.post.mockResolvedValue({
+      data: { result: { sys_id: validSysId, name: "server_count" } },
+    });
+
+    await handlers.create_catalog_variable({
+      cat_item: validSysId,
+      name: "server_count",
+      question_text: "Number of Servers",
+      type: "single_line_text",
+      validate_regex: regexSysId,
+    });
+
+    const body = snClient.post.mock.calls[0][1];
+    expect(body.validate_regex).toBe(regexSysId);
+  });
+
   // --- update_catalog_variable ---
 
   it("update_catalog_variable patches and returns self_link", async () => {
