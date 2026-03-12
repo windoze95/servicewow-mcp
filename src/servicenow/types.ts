@@ -124,6 +124,82 @@ export interface KnowledgeArticle extends ServiceNowRecord {
   workflow_state: string;
 }
 
+export interface CatalogVariable extends ServiceNowRecord {
+  name: string;
+  question_text: string;
+  type: string;
+  cat_item: string;
+  mandatory?: string;
+  order?: string;
+  default_value?: string;
+  reference?: string;
+  reference_qual?: string;
+  help_text?: string;
+  hidden?: string;
+  read_only?: string;
+  variable_set?: string;
+}
+
+export interface VariableChoice extends ServiceNowRecord {
+  question: string;
+  text: string;
+  value: string;
+  order?: string;
+}
+
+export interface VariableSet extends ServiceNowRecord {
+  title: string;
+  internal_name: string;
+  type?: string;
+  description?: string;
+  order?: string;
+}
+
+export interface VariableSetItem extends ServiceNowRecord {
+  sc_cat_item: string;
+  variable_set: string;
+  order?: string;
+}
+
+export interface CatalogClientScript extends ServiceNowRecord {
+  name: string;
+  cat_item?: string;
+  type: string;
+  script: string;
+  cat_variable?: string;
+  applies_to?: string;
+  variable_set?: string;
+  ui_type?: string;
+  active?: string;
+  applies_catalog?: string;
+  applies_req_item?: string;
+}
+
+export interface CatalogUIPolicy extends ServiceNowRecord {
+  short_description: string;
+  catalog_item?: string;
+  catalog_conditions: string;
+  on_load?: string;
+  reverse_if_false?: string;
+  order?: string;
+  applies_to?: string;
+  variable_set?: string;
+  ui_type?: string;
+  run_scripts?: string;
+  script_true?: string;
+  script_false?: string;
+  active?: string;
+}
+
+export interface CatalogUIPolicyAction extends ServiceNowRecord {
+  ui_policy: string;
+  catalog_variable: string;
+  visible?: string;
+  mandatory?: string;
+  disabled?: string;
+  cleared?: string;
+}
+
 export interface ServiceNowListResponse<T = ServiceNowRecord> {
   result: T[];
 }

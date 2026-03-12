@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   validateSysId,
   validateIncidentNumber,
+  validateChangeNumber,
+  validateIOVariable,
   validateState,
-  validatePriority,
   sanitizeUpdatePayload,
   READONLY_FIELDS,
 } from "../../../src/utils/validators.js";
@@ -41,6 +42,38 @@ describe("validators", () => {
     });
   });
 
+  describe("validateChangeNumber", () => {
+    it("should accept valid change numbers", () => {
+      expect(validateChangeNumber("CHG0012345")).toBe(true);
+      expect(validateChangeNumber("CHG0000001")).toBe(true);
+      expect(validateChangeNumber("CHG12345678")).toBe(true);
+    });
+
+    it("should reject invalid change numbers", () => {
+      expect(validateChangeNumber("")).toBe(false);
+      expect(validateChangeNumber("CHG")).toBe(false);
+      expect(validateChangeNumber("CHG123")).toBe(false);
+      expect(validateChangeNumber("INC0012345")).toBe(false);
+      expect(validateChangeNumber("chg0012345")).toBe(false);
+    });
+  });
+
+  describe("validateIOVariable", () => {
+    it("should accept valid IO:{sys_id} format", () => {
+      expect(validateIOVariable("IO:0123456789abcdef0123456789abcdef")).toBe(true);
+      expect(validateIOVariable("IO:ABCDEF0123456789abcdef0123456789")).toBe(true);
+    });
+
+    it("should reject invalid IO variable formats", () => {
+      expect(validateIOVariable("")).toBe(false);
+      expect(validateIOVariable("priority")).toBe(false);
+      expect(validateIOVariable("IO:abc123")).toBe(false);
+      expect(validateIOVariable("io:0123456789abcdef0123456789abcdef")).toBe(false);
+      expect(validateIOVariable("0123456789abcdef0123456789abcdef")).toBe(false);
+      expect(validateIOVariable("IO:")).toBe(false);
+    });
+  });
+
   describe("validateState", () => {
     it("should accept valid states", () => {
       expect(validateState("New")).toBe(true);
@@ -54,21 +87,6 @@ describe("validators", () => {
       expect(validateState("")).toBe(false);
       expect(validateState("invalid")).toBe(false);
       expect(validateState("0")).toBe(false);
-    });
-  });
-
-  describe("validatePriority", () => {
-    it("should calculate priority correctly", () => {
-      expect(validatePriority(1, 1)).toBe(1);
-      expect(validatePriority(1, 2)).toBe(2);
-      expect(validatePriority(2, 2)).toBe(3);
-      expect(validatePriority(3, 3)).toBe(5);
-    });
-
-    it("should reject invalid ranges", () => {
-      expect(() => validatePriority(0, 1)).toThrow();
-      expect(() => validatePriority(1, 4)).toThrow();
-      expect(() => validatePriority(4, 1)).toThrow();
     });
   });
 
@@ -86,6 +104,19 @@ describe("validators", () => {
       expect(sanitized).toEqual({
         short_description: "kept",
         state: "kept",
+      });
+    });
+
+    it("should strip identity fields (caller_id, requested_by)", () => {
+      const payload = {
+        caller_id: "attacker_sys_id",
+        requested_by: "attacker_sys_id",
+        short_description: "kept",
+      };
+
+      const sanitized = sanitizeUpdatePayload(payload);
+      expect(sanitized).toEqual({
+        short_description: "kept",
       });
     });
 

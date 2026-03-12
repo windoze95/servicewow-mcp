@@ -223,11 +223,6 @@ export function registerIncidentTools(
         if (args.assignment_group) body.assignment_group = args.assignment_group;
         if (args.cmdb_ci) body.cmdb_ci = args.cmdb_ci;
 
-        // Calculate priority from impact + urgency
-        if (args.impact && args.urgency) {
-          body.priority = args.impact + args.urgency - 1;
-        }
-
         const { data } = await ctx.snClient.post<
           ServiceNowSingleResponse<Incident>
         >("/api/now/table/incident", body);

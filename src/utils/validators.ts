@@ -1,6 +1,7 @@
 const SYS_ID_REGEX = /^[0-9a-fA-F]{32}$/;
 const INCIDENT_NUMBER_REGEX = /^INC\d{7,}$/;
 const CHANGE_NUMBER_REGEX = /^CHG\d{7,}$/;
+const IO_VARIABLE_REGEX = /^IO:[0-9a-fA-F]{32}$/;
 
 export function validateSysId(value: string): boolean {
   return SYS_ID_REGEX.test(value);
@@ -12,6 +13,10 @@ export function validateIncidentNumber(value: string): boolean {
 
 export function validateChangeNumber(value: string): boolean {
   return CHANGE_NUMBER_REGEX.test(value);
+}
+
+export function validateIOVariable(value: string): boolean {
+  return IO_VARIABLE_REGEX.test(value);
 }
 
 export function validateState(state: string): boolean {
@@ -28,13 +33,6 @@ export function validateState(state: string): boolean {
   return validStates.includes(state);
 }
 
-export function validatePriority(impact: number, urgency: number): number {
-  if (impact < 1 || impact > 3 || urgency < 1 || urgency > 3) {
-    throw new Error("Impact and urgency must be between 1 and 3");
-  }
-  return impact + urgency - 1;
-}
-
 export const READONLY_FIELDS = new Set([
   "sys_id",
   "sys_created_on",
@@ -48,6 +46,11 @@ export const READONLY_FIELDS = new Set([
   "number",
   "opened_at",
   "opened_by",
+  // Identity fields — server-controlled at creation, must not be overwritten
+  "caller_id",
+  "requested_by",
+  // Priority is calculated by ServiceNow from impact/urgency
+  "priority",
 ]);
 
 export function sanitizeUpdatePayload(
