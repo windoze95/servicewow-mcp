@@ -51,7 +51,7 @@ Runs the appropriate `docker compose` command based on the chosen deployment mod
 
 ### 5. Health Check
 
-Polls `http://localhost:{port}/health` every 2 seconds for up to 60 seconds. Reports success or failure.
+Polls the health endpoint every 2 seconds for up to 60 seconds. In local mode this is `http://localhost:{port}/health`; in public mode it uses `https://{CADDY_DOMAIN}/health`. Reports success or failure.
 
 ### 6. Print Instructions
 

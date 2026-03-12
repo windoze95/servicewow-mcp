@@ -108,6 +108,13 @@ generate_env() {
         fi
     fi
 
+    # Derive public-facing base URL
+    if [ "$DEPLOY_MODE" = "2" ]; then
+        PUBLIC_URL="https://${CADDY_DOMAIN}"
+    else
+        PUBLIC_URL="https://${SERVER_HOST}:${SERVER_PORT}"
+    fi
+
     # Write .env file
     cat > "$ENV_FILE" <<EOF
 # ServiceNow Instance
@@ -116,8 +123,8 @@ SERVICENOW_CLIENT_ID=${CLIENT_ID}
 SERVICENOW_CLIENT_SECRET=${CLIENT_SECRET}
 
 # MCP OAuth
-MCP_SERVER_URL=https://${SERVER_HOST}:${SERVER_PORT}
-SN_CALLBACK_URI=https://${SERVER_HOST}:${SERVER_PORT}/oauth/sn-callback
+MCP_SERVER_URL=${PUBLIC_URL}
+SN_CALLBACK_URI=${PUBLIC_URL}/oauth/sn-callback
 
 # Security (auto-generated)
 TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}
@@ -182,8 +189,15 @@ wait_for_health() {
     local max_attempts=30
     local attempt=0
 
+    local HEALTH_URL
+    if [ "${DEPLOY_MODE:-1}" = "2" ]; then
+        HEALTH_URL="https://${CADDY_DOMAIN}/health"
+    else
+        HEALTH_URL="http://localhost:${SERVER_PORT:-8080}/health"
+    fi
+
     while [ $attempt -lt $max_attempts ]; do
-        if curl -sf "http://localhost:${SERVER_PORT:-8080}/health" > /dev/null 2>&1; then
+        if curl -sf "${HEALTH_URL}" > /dev/null 2>&1; then
             echo -e "${GREEN}✓ Server is healthy!${NC}"
             return
         fi
@@ -219,7 +233,7 @@ print_instructions() {
     echo "2. Create new: 'Create an OAuth API endpoint for external clients'"
     echo "3. Configure:"
     echo "   - Name: ServiceNow MCP Server"
-    echo "   - Redirect URL: https://${SERVER_HOST:-localhost}:${PORT}/oauth/sn-callback"
+    echo "   - Redirect URL: ${PUBLIC_URL:-https://${SERVER_HOST:-localhost}:${PORT}}/oauth/sn-callback"
     echo "   - Note the Client ID and Client Secret"
     echo "   - Ensure they match your .env file"
     echo ""
@@ -232,12 +246,13 @@ print_instructions() {
     echo "This role only allows REST API access — record-level permissions are still"
     echo "governed by each user's existing ACLs and roles."
     echo ""
+    local MCP_URL="${PUBLIC_URL:-https://${SERVER_HOST:-localhost}:${PORT}}"
     echo -e "${BOLD}Claude Desktop Configuration:${NC}"
     echo '{'
     echo '  "mcpServers": {'
     echo '    "servicenow": {'
     echo '      "type": "streamablehttp",'
-    echo "      \"url\": \"https://${SERVER_HOST:-localhost}:${PORT}/mcp\""
+    echo "      \"url\": \"${MCP_URL}/mcp\""
     echo '    }'
     echo '  }'
     echo '}'
