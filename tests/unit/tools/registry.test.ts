@@ -168,9 +168,7 @@ describe("registerAllTools", () => {
     });
   });
 
-  it("returns AUTH_REQUIRED with auth_url when session has no user mapping", async () => {
-    tokenStore.getUserForSession.mockResolvedValue(null);
-
+  it("returns AUTH_REQUIRED with auth_url when no authInfo is present", async () => {
     registerAllTools(
       {} as any,
       () => "session-123",
@@ -225,8 +223,6 @@ describe("registerAllTools", () => {
   });
 
   it("passes through known toolError payloads from handlers", async () => {
-    tokenStore.getUserForSession.mockResolvedValue("abc123def456abc123def456abc12345");
-
     registerAllTools(
       {} as any,
       () => "session-123",
@@ -250,7 +246,16 @@ describe("registerAllTools", () => {
       });
     });
 
-    const response = await wrapped({} as Record<string, never>);
+    const extra = {
+      authInfo: {
+        token: "mcp-token-123",
+        clientId: "client-1",
+        scopes: [] as string[],
+        extra: { userSysId: "abc123def456abc123def456abc12345" },
+      },
+    };
+
+    const response = await wrapped({} as Record<string, never>, extra);
 
     expect(response.isError).toBe(true);
     expect(JSON.parse(response.content[0].text)).toEqual(knownToolError);
@@ -258,8 +263,6 @@ describe("registerAllTools", () => {
   });
 
   it("normalizes unexpected errors using handleToolError", async () => {
-    tokenStore.getUserForSession.mockResolvedValue("abc123def456abc123def456abc12345");
-
     registerAllTools(
       {} as any,
       () => "session-123",
@@ -273,7 +276,16 @@ describe("registerAllTools", () => {
       throw boom;
     });
 
-    const response = await wrapped({} as Record<string, never>);
+    const extra = {
+      authInfo: {
+        token: "mcp-token-123",
+        clientId: "client-1",
+        scopes: [] as string[],
+        extra: { userSysId: "abc123def456abc123def456abc12345" },
+      },
+    };
+
+    const response = await wrapped({} as Record<string, never>, extra);
 
     expect(response.isError).toBe(true);
     expect(JSON.parse(response.content[0].text)).toEqual({

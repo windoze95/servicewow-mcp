@@ -109,6 +109,8 @@ describe("ServiceNowOAuthProvider", () => {
   });
 
   describe("exchangeAuthorizationCode", () => {
+    const matchingClient = { client_id: "client-1" } as any;
+
     it("returns MCP tokens and deletes auth code", async () => {
       tokenStore.getAuthCode.mockResolvedValue({
         userSysId: "user-abc",
@@ -119,7 +121,7 @@ describe("ServiceNowOAuthProvider", () => {
       });
 
       const tokens = await provider.exchangeAuthorizationCode(
-        {} as any,
+        matchingClient,
         "auth-code-123"
       );
 
@@ -144,12 +146,49 @@ describe("ServiceNowOAuthProvider", () => {
       tokenStore.getAuthCode.mockResolvedValue(null);
 
       await expect(
-        provider.exchangeAuthorizationCode({} as any, "bad-code")
+        provider.exchangeAuthorizationCode(matchingClient, "bad-code")
       ).rejects.toThrow("Authorization code not found or expired");
+    });
+
+    it("rejects when client_id does not match the code", async () => {
+      tokenStore.getAuthCode.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "client-1",
+        codeChallenge: "challenge",
+        redirectUri: "http://localhost",
+        scopes: [],
+      });
+
+      const wrongClient = { client_id: "client-other" } as any;
+
+      await expect(
+        provider.exchangeAuthorizationCode(wrongClient, "auth-code-123")
+      ).rejects.toThrow("Authorization code was not issued to this client");
+    });
+
+    it("rejects when redirect_uri does not match the code", async () => {
+      tokenStore.getAuthCode.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "client-1",
+        codeChallenge: "challenge",
+        redirectUri: "http://localhost/callback",
+        scopes: [],
+      });
+
+      await expect(
+        provider.exchangeAuthorizationCode(
+          matchingClient,
+          "auth-code-123",
+          undefined,
+          "http://evil.example.com/callback"
+        )
+      ).rejects.toThrow("redirect_uri does not match");
     });
   });
 
   describe("exchangeRefreshToken", () => {
+    const matchingClient = { client_id: "client-1" } as any;
+
     it("returns new access token when refresh token and SN creds are valid", async () => {
       tokenStore.getMcpRefreshToken.mockResolvedValue({
         userSysId: "user-abc",
@@ -158,7 +197,7 @@ describe("ServiceNowOAuthProvider", () => {
       });
       tokenStore.getToken.mockResolvedValue({ access_token: "sn-token" });
 
-      const tokens = await provider.exchangeRefreshToken({} as any, "refresh-123");
+      const tokens = await provider.exchangeRefreshToken(matchingClient, "refresh-123");
 
       expect(tokens.access_token).toBeTruthy();
       expect(tokens.token_type).toBe("Bearer");
@@ -170,8 +209,22 @@ describe("ServiceNowOAuthProvider", () => {
       tokenStore.getMcpRefreshToken.mockResolvedValue(null);
 
       await expect(
-        provider.exchangeRefreshToken({} as any, "bad-refresh")
+        provider.exchangeRefreshToken(matchingClient, "bad-refresh")
       ).rejects.toThrow("Refresh token not found or expired");
+    });
+
+    it("rejects when client_id does not match the refresh token", async () => {
+      tokenStore.getMcpRefreshToken.mockResolvedValue({
+        userSysId: "user-abc",
+        clientId: "client-1",
+        scopes: [],
+      });
+
+      const wrongClient = { client_id: "client-other" } as any;
+
+      await expect(
+        provider.exchangeRefreshToken(wrongClient, "refresh-123")
+      ).rejects.toThrow("Refresh token was not issued to this client");
     });
 
     it("revokes refresh token and throws when SN creds are gone", async () => {
@@ -183,7 +236,7 @@ describe("ServiceNowOAuthProvider", () => {
       tokenStore.getToken.mockResolvedValue(null);
 
       await expect(
-        provider.exchangeRefreshToken({} as any, "refresh-123")
+        provider.exchangeRefreshToken(matchingClient, "refresh-123")
       ).rejects.toThrow("ServiceNow credentials expired");
 
       expect(tokenStore.deleteMcpRefreshToken).toHaveBeenCalledWith("refresh-123");

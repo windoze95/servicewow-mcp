@@ -81,10 +81,10 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
   }
 
   async exchangeAuthorizationCode(
-    _client: OAuthClientInformationFull,
+    client: OAuthClientInformationFull,
     authorizationCode: string,
     _codeVerifier?: string,
-    _redirectUri?: string
+    redirectUri?: string
   ): Promise<OAuthTokens> {
     // Look up and consume the authorization code (one-time use)
     const codeData = await this.tokenStore.getAuthCode(authorizationCode);
@@ -92,6 +92,16 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
       throw new InvalidGrantError("Authorization code not found or expired");
     }
     await this.tokenStore.deleteAuthCode(authorizationCode);
+
+    // Verify the code was issued to this client (RFC 6749 §4.1.3)
+    if (codeData.clientId !== client.client_id) {
+      throw new InvalidGrantError("Authorization code was not issued to this client");
+    }
+
+    // Verify redirect_uri matches if provided (RFC 6749 §4.1.3)
+    if (redirectUri && codeData.redirectUri !== redirectUri) {
+      throw new InvalidGrantError("redirect_uri does not match the authorization request");
+    }
 
     const { userSysId, clientId, scopes } = codeData;
 
@@ -124,13 +134,18 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
   }
 
   async exchangeRefreshToken(
-    _client: OAuthClientInformationFull,
+    client: OAuthClientInformationFull,
     refreshToken: string,
     scopes?: string[]
   ): Promise<OAuthTokens> {
     const refreshData = await this.tokenStore.getMcpRefreshToken(refreshToken);
     if (!refreshData) {
       throw new InvalidGrantError("Refresh token not found or expired");
+    }
+
+    // Verify the refresh token was issued to this client
+    if (refreshData.clientId !== client.client_id) {
+      throw new InvalidGrantError("Refresh token was not issued to this client");
     }
 
     // Verify user still has valid SN credentials

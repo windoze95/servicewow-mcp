@@ -45,24 +45,11 @@ export function registerAllTools(
   const rateLimiter = new RateLimiter(redis, config.RATE_LIMIT_PER_USER);
 
   const getContext = async (extra?: { authInfo?: AuthInfo }): Promise<ToolContext> => {
-    let userSysId: string | null = null;
-
-    // Try bearer auth first (SDK OAuth flow)
+    // Resolve user from bearer token (set by requireBearerAuth middleware)
     const authInfo = extra?.authInfo;
-    if (authInfo?.extra?.userSysId) {
-      userSysId = authInfo.extra.userSysId as string;
-    }
-
-    // Fall back to session-based lookup (backward compat)
+    const userSysId = authInfo?.extra?.userSysId as string | undefined;
     if (!userSysId) {
-      const sessionId = getSessionId();
-      if (!sessionId) {
-        throw new AuthRequiredError();
-      }
-      userSysId = await tokenStore.getUserForSession(sessionId);
-      if (!userSysId) {
-        throw new AuthRequiredError();
-      }
+      throw new AuthRequiredError();
     }
 
     // Check rate limit
