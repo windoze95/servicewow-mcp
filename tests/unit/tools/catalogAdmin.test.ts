@@ -617,11 +617,59 @@ describe("registerCatalogAdminTools", () => {
       name: "Bad",
       type: "onLoad",
       script: "x",
+      applies_to: "A Variable Set",
       variable_set: "bad-id",
     })) as any;
 
     expect(result.success).toBe(false);
     expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(snClient.post).not.toHaveBeenCalled();
+  });
+
+  it("create_catalog_client_script requires cat_item when targeting a catalog item", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.create_catalog_client_script({
+      name: "No target",
+      type: "onLoad",
+      script: "function onLoad() {}",
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("cat_item is required");
+    expect(snClient.post).not.toHaveBeenCalled();
+  });
+
+  it("create_catalog_client_script requires variable_set when targeting a variable set", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.create_catalog_client_script({
+      name: "No target",
+      type: "onLoad",
+      script: "function onLoad() {}",
+      applies_to: "A Variable Set",
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("variable_set is required");
+    expect(snClient.post).not.toHaveBeenCalled();
+  });
+
+  it("create_catalog_client_script requires cat_variable for onChange scripts", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.create_catalog_client_script({
+      name: "Missing trigger",
+      cat_item: validSysId,
+      type: "onChange",
+      script: "function onChange() {}",
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("cat_variable is required");
     expect(snClient.post).not.toHaveBeenCalled();
   });
 
@@ -666,6 +714,7 @@ describe("registerCatalogAdminTools", () => {
 
     await handlers.create_catalog_ui_policy({
       short_description: "Scripted policy",
+      catalog_item: validSysId,
       catalog_conditions: "IO:varA=yes",
       run_scripts: true,
       script_true: "alert('yes')",
@@ -700,11 +749,41 @@ describe("registerCatalogAdminTools", () => {
     const result = (await handlers.create_catalog_ui_policy({
       short_description: "Bad",
       catalog_conditions: "x",
+      applies_to: "A Variable Set",
       variable_set: "bad-id",
     })) as any;
 
     expect(result.success).toBe(false);
     expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(snClient.post).not.toHaveBeenCalled();
+  });
+
+  it("create_catalog_ui_policy requires catalog_item when targeting a catalog item", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.create_catalog_ui_policy({
+      short_description: "No target",
+      catalog_conditions: "IO:varA=yes^EQ",
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("catalog_item is required");
+    expect(snClient.post).not.toHaveBeenCalled();
+  });
+
+  it("create_catalog_ui_policy requires variable_set when targeting a variable set", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.create_catalog_ui_policy({
+      short_description: "No target",
+      catalog_conditions: "IO:varA=yes^EQ",
+      applies_to: "A Variable Set",
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("variable_set is required");
     expect(snClient.post).not.toHaveBeenCalled();
   });
 

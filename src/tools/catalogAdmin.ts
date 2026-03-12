@@ -694,6 +694,41 @@ export function registerCatalogAdminTools(
           applies_req_item?: boolean;
         }
       ) => {
+        // Cross-field target validation
+        const targetsVariableSet = args.applies_to === "A Variable Set";
+        if (targetsVariableSet && !args.variable_set) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "variable_set is required when applies_to is 'A Variable Set'.",
+            },
+          };
+        }
+        if (!targetsVariableSet && !args.cat_item) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "cat_item is required when applies_to is 'A Catalog Item' (or omitted).",
+            },
+          };
+        }
+
+        // Require cat_variable for onChange scripts
+        if (args.type === "onChange" && !args.cat_variable) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "cat_variable is required for onChange scripts (IO:{variable_sys_id} format).",
+            },
+          };
+        }
+
         if (args.cat_item && !validateSysId(args.cat_item)) {
           return {
             success: false,
@@ -819,6 +854,29 @@ export function registerCatalogAdminTools(
           active?: boolean;
         }
       ) => {
+        // Cross-field target validation
+        const policyTargetsVariableSet = args.applies_to === "A Variable Set";
+        if (policyTargetsVariableSet && !args.variable_set) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "variable_set is required when applies_to is 'A Variable Set'.",
+            },
+          };
+        }
+        if (!policyTargetsVariableSet && !args.catalog_item) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message:
+                "catalog_item is required when applies_to is 'A Catalog Item' (or omitted).",
+            },
+          };
+        }
+
         if (args.catalog_item && !validateSysId(args.catalog_item)) {
           return {
             success: false,
