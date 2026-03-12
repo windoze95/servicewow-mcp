@@ -15,6 +15,7 @@ describe("TokenStore — MCP OAuth methods", () => {
   const mockRedis = {
     set: vi.fn().mockResolvedValue("OK"),
     get: vi.fn().mockResolvedValue(null),
+    getdel: vi.fn().mockResolvedValue(null),
     del: vi.fn().mockResolvedValue(1),
   };
 
@@ -60,7 +61,7 @@ describe("TokenStore — MCP OAuth methods", () => {
   });
 
   describe("SN state", () => {
-    it("stores and retrieves SN state (one-time use)", async () => {
+    it("stores and atomically consumes SN state (one-time use)", async () => {
       const data = { pendingAuthId: "pa-1" };
 
       await store.storeSnState("state-1", data, 600);
@@ -71,23 +72,23 @@ describe("TokenStore — MCP OAuth methods", () => {
         600
       );
 
-      mockRedis.get.mockResolvedValueOnce(JSON.stringify(data));
+      mockRedis.getdel.mockResolvedValueOnce(JSON.stringify(data));
       const result = await store.getSnState("state-1");
       expect(result).toEqual(data);
-      expect(mockRedis.del).toHaveBeenCalledWith("sn_state:state-1");
+      expect(mockRedis.getdel).toHaveBeenCalledWith("sn_state:state-1");
     });
   });
 
   describe("auth code", () => {
-    it("stores, retrieves, and deletes auth codes", async () => {
-      const data = {
-        userSysId: "u1",
-        clientId: "c1",
-        codeChallenge: "ch",
-        redirectUri: "http://localhost",
-        scopes: ["read"],
-      };
+    const data = {
+      userSysId: "u1",
+      clientId: "c1",
+      codeChallenge: "ch",
+      redirectUri: "http://localhost",
+      scopes: ["read"],
+    };
 
+    it("stores, retrieves, and deletes auth codes", async () => {
       await store.storeAuthCode("code-1", data, 300);
       expect(mockRedis.set).toHaveBeenCalledWith(
         "auth_code:code-1",
@@ -102,6 +103,19 @@ describe("TokenStore — MCP OAuth methods", () => {
 
       await store.deleteAuthCode("code-1");
       expect(mockRedis.del).toHaveBeenCalledWith("auth_code:code-1");
+    });
+
+    it("atomically consumes auth code via consumeAuthCode", async () => {
+      mockRedis.getdel.mockResolvedValueOnce(JSON.stringify(data));
+      const result = await store.consumeAuthCode("code-1");
+      expect(result).toEqual(data);
+      expect(mockRedis.getdel).toHaveBeenCalledWith("auth_code:code-1");
+    });
+
+    it("returns null from consumeAuthCode when code does not exist", async () => {
+      mockRedis.getdel.mockResolvedValueOnce(null);
+      const result = await store.consumeAuthCode("missing");
+      expect(result).toBeNull();
     });
   });
 

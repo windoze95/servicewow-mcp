@@ -15,6 +15,7 @@ describe("ServiceNowOAuthProvider", () => {
     getSnState: vi.fn(),
     storeAuthCode: vi.fn().mockResolvedValue(undefined),
     getAuthCode: vi.fn(),
+    consumeAuthCode: vi.fn(),
     deleteAuthCode: vi.fn().mockResolvedValue(undefined),
     storeMcpToken: vi.fn().mockResolvedValue(undefined),
     getMcpToken: vi.fn(),
@@ -111,8 +112,8 @@ describe("ServiceNowOAuthProvider", () => {
   describe("exchangeAuthorizationCode", () => {
     const matchingClient = { client_id: "client-1" } as any;
 
-    it("returns MCP tokens and deletes auth code", async () => {
-      tokenStore.getAuthCode.mockResolvedValue({
+    it("atomically consumes auth code and returns MCP tokens", async () => {
+      tokenStore.consumeAuthCode.mockResolvedValue({
         userSysId: "user-abc",
         clientId: "client-1",
         codeChallenge: "challenge",
@@ -129,7 +130,7 @@ describe("ServiceNowOAuthProvider", () => {
       expect(tokens.token_type).toBe("Bearer");
       expect(tokens.expires_in).toBe(3600);
       expect(tokens.refresh_token).toBeTruthy();
-      expect(tokenStore.deleteAuthCode).toHaveBeenCalledWith("auth-code-123");
+      expect(tokenStore.consumeAuthCode).toHaveBeenCalledWith("auth-code-123");
       expect(tokenStore.storeMcpToken).toHaveBeenCalledWith(
         tokens.access_token,
         expect.objectContaining({ userSysId: "user-abc", clientId: "client-1" }),
@@ -143,7 +144,7 @@ describe("ServiceNowOAuthProvider", () => {
     });
 
     it("throws when auth code not found", async () => {
-      tokenStore.getAuthCode.mockResolvedValue(null);
+      tokenStore.consumeAuthCode.mockResolvedValue(null);
 
       await expect(
         provider.exchangeAuthorizationCode(matchingClient, "bad-code")
@@ -151,7 +152,7 @@ describe("ServiceNowOAuthProvider", () => {
     });
 
     it("rejects when client_id does not match the code", async () => {
-      tokenStore.getAuthCode.mockResolvedValue({
+      tokenStore.consumeAuthCode.mockResolvedValue({
         userSysId: "user-abc",
         clientId: "client-1",
         codeChallenge: "challenge",
@@ -167,7 +168,7 @@ describe("ServiceNowOAuthProvider", () => {
     });
 
     it("rejects when redirect_uri does not match the code", async () => {
-      tokenStore.getAuthCode.mockResolvedValue({
+      tokenStore.consumeAuthCode.mockResolvedValue({
         userSysId: "user-abc",
         clientId: "client-1",
         codeChallenge: "challenge",

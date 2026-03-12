@@ -86,12 +86,11 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
     _codeVerifier?: string,
     redirectUri?: string
   ): Promise<OAuthTokens> {
-    // Look up and consume the authorization code (one-time use)
-    const codeData = await this.tokenStore.getAuthCode(authorizationCode);
+    // Atomically consume the authorization code (one-time use)
+    const codeData = await this.tokenStore.consumeAuthCode(authorizationCode);
     if (!codeData) {
       throw new InvalidGrantError("Authorization code not found or expired");
     }
-    await this.tokenStore.deleteAuthCode(authorizationCode);
 
     // Verify the code was issued to this client (RFC 6749 §4.1.3)
     if (codeData.clientId !== client.client_id) {

@@ -328,7 +328,7 @@ describe("createOAuthRouter", () => {
     expect(location).toContain("code=");
   });
 
-  it("returns TOKEN_EXCHANGE_FAILED when SN token exchange fails in sn-callback", async () => {
+  it("returns TOKEN_EXCHANGE_FAILED and cleans up pending auth when SN token exchange fails", async () => {
     tokenStore.getSnState.mockResolvedValue({ pendingAuthId: "pending-1" });
     tokenStore.getPendingAuth.mockResolvedValue({
       clientId: "mcp-client-1",
@@ -337,6 +337,7 @@ describe("createOAuthRouter", () => {
       state: "state",
       scopes: [],
     });
+    tokenStore.deletePendingAuth.mockResolvedValue(undefined);
 
     axiosMocks.post.mockRejectedValue({
       response: { status: 400, data: { error: "invalid_grant" } },
@@ -348,5 +349,6 @@ describe("createOAuthRouter", () => {
       .expect(500);
 
     expect(response.body.error.code).toBe("TOKEN_EXCHANGE_FAILED");
+    expect(tokenStore.deletePendingAuth).toHaveBeenCalledWith("pending-1");
   });
 });

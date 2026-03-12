@@ -156,6 +156,8 @@ export function createOAuthRouter(
         { err: axiosErr.response?.data || axiosErr.message },
         "SN callback token exchange failed"
       );
+      // Clean up orphaned pending auth (snState already consumed)
+      await tokenStore.deletePendingAuth(snStateData.pendingAuthId);
       res.status(500).json({
         success: false,
         error: { code: "TOKEN_EXCHANGE_FAILED", message: "Failed to exchange ServiceNow authorization code" },

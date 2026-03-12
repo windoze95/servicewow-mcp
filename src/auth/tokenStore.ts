@@ -196,9 +196,8 @@ export class TokenStore {
     state: string
   ): Promise<{ sessionId?: string; redirectUri?: string } | null> {
     const key = `oauth_state:${state}`;
-    const data = await this.redis.get(key);
+    const data = await this.redis.getdel(key); // atomic one-time use
     if (!data) return null;
-    await this.redis.del(key); // one-time use
     return JSON.parse(data);
   }
 
@@ -227,9 +226,8 @@ export class TokenStore {
 
   async getSnState(state: string): Promise<SnStateData | null> {
     const key = `sn_state:${state}`;
-    const raw = await this.redis.get(key);
+    const raw = await this.redis.getdel(key); // atomic one-time use
     if (!raw) return null;
-    await this.redis.del(key); // one-time use
     return JSON.parse(raw);
   }
 
@@ -241,6 +239,14 @@ export class TokenStore {
   async getAuthCode(code: string): Promise<AuthCodeData | null> {
     const key = `auth_code:${code}`;
     const raw = await this.redis.get(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }
+
+  /** Atomically retrieve and delete an auth code (one-time use for token exchange). */
+  async consumeAuthCode(code: string): Promise<AuthCodeData | null> {
+    const key = `auth_code:${code}`;
+    const raw = await this.redis.getdel(key);
     if (!raw) return null;
     return JSON.parse(raw);
   }
