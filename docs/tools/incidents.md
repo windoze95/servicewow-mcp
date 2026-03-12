@@ -47,7 +47,7 @@ Create a new incident. The `caller_id` is automatically set to the authenticated
 
 **Identity enforcement**: `caller_id` is always set to `ctx.userSysId`. See [Identity Enforcement](../security/identity-enforcement.md).
 
-**Priority calculation**: If both `impact` and `urgency` are provided, priority is calculated as `impact + urgency - 1`.
+**Priority**: Calculated automatically by ServiceNow from impact and urgency via its native priority lookup rules.
 
 ## `update_incident`
 
