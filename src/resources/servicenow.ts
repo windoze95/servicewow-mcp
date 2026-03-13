@@ -29,7 +29,12 @@ export function registerResources(
       try {
         const ctx = await getContext(extra);
         const { data } = await ctx.snClient.get<ServiceNowSingleResponse<User>>(
-          `/api/now/table/sys_user/${ctx.userSysId}`
+          `/api/now/table/sys_user/${ctx.userSysId}`,
+          {
+            params: {
+              sysparm_fields: "sys_id,user_name,name,first_name,last_name,email,phone,department,title,manager,active,employee_number,location,photo",
+            },
+          }
         );
         return {
           contents: [

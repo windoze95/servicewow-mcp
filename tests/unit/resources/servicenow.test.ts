@@ -88,7 +88,12 @@ describe("registerResources", () => {
       const result = await handler(new URL("servicenow://me"), {});
 
       expect(snClient.get).toHaveBeenCalledWith(
-        `/api/now/table/sys_user/${VALID_SYS_ID}`
+        `/api/now/table/sys_user/${VALID_SYS_ID}`,
+        {
+          params: {
+            sysparm_fields: "sys_id,user_name,name,first_name,last_name,email,phone,department,title,manager,active,employee_number,location,photo",
+          },
+        }
       );
       expect(result.contents).toHaveLength(1);
       expect(result.contents[0].uri).toBe("servicenow://me");
