@@ -185,9 +185,12 @@ describe("TokenRefresher", () => {
     const now = Math.floor(Date.now() / 1000);
     const staleToken = buildToken(now + 30);
 
+    // Each ensureFreshToken call needs: initial getToken + post-lock getToken
     mockTokenStore.getToken
-      .mockResolvedValueOnce(staleToken)
-      .mockResolvedValueOnce(staleToken);
+      .mockResolvedValueOnce(staleToken)   // call 1: initial check
+      .mockResolvedValueOnce(staleToken)   // call 1: post-lock double-check
+      .mockResolvedValueOnce(staleToken)   // call 2: initial check
+      .mockResolvedValueOnce(staleToken);  // call 2: post-lock double-check
     mockRedis.set.mockResolvedValue("OK");
     mockRedis.eval.mockResolvedValue(1);
     mockTokenStore.storeToken.mockResolvedValue(undefined);
@@ -202,21 +205,40 @@ describe("TokenRefresher", () => {
     );
 
     await refresher.ensureFreshToken(userSysId);
+    await refresher.ensureFreshToken(userSysId);
 
-    // Lock was acquired with the first UUID
-    expect(mockRedis.set).toHaveBeenCalledWith(
+    // First call acquired and released with uuid-call-1
+    expect(mockRedis.set).toHaveBeenNthCalledWith(
+      1,
       expect.any(String),
       "uuid-call-1",
       "EX",
       10,
       "NX"
     );
-    // Lock release uses the same UUID for compare-and-delete
-    expect(mockRedis.eval).toHaveBeenCalledWith(
+    expect(mockRedis.eval).toHaveBeenNthCalledWith(
+      1,
       expect.any(String),
       1,
       expect.any(String),
       "uuid-call-1"
+    );
+
+    // Second call acquired and released with uuid-call-2
+    expect(mockRedis.set).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      "uuid-call-2",
+      "EX",
+      10,
+      "NX"
+    );
+    expect(mockRedis.eval).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      1,
+      expect.any(String),
+      "uuid-call-2"
     );
   });
 
