@@ -28,7 +28,7 @@ export function registerTaskTools(
     "Get all open tasks assigned to the authenticated user across all task types (incidents, requests, changes, etc.).",
     {},
     wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
-      const results = await paginateAll<Task>(
+      const { results, totalCount, truncated } = await paginateAll<Task>(
         async (limit, offset) => {
           const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Task>>(
             "/api/now/table/task",
@@ -57,7 +57,9 @@ export function registerTaskTools(
           self_link: buildRecordUrl(ctx.instanceUrl, r.sys_class_name || "task", r.sys_id),
         })),
         metadata: {
-          total_count: results.length,
+          total_count: totalCount,
+          returned_count: results.length,
+          truncated,
         },
       };
     })
@@ -69,7 +71,7 @@ export function registerTaskTools(
     "Get pending approvals for the authenticated user.",
     {},
     wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
-      const results = await paginateAll<Approval>(
+      const { results, totalCount, truncated } = await paginateAll<Approval>(
         async (limit, offset) => {
           const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Approval>>(
             "/api/now/table/sysapproval_approver",
@@ -98,7 +100,9 @@ export function registerTaskTools(
           self_link: buildRecordUrl(ctx.instanceUrl, "sysapproval_approver", r.sys_id),
         })),
         metadata: {
-          total_count: results.length,
+          total_count: totalCount,
+          returned_count: results.length,
+          truncated,
         },
       };
     })

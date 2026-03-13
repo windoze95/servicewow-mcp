@@ -350,13 +350,13 @@ export function registerChangeRequestTools(
         const resolved = await resolveChangeRequestSysId(ctx, args.identifier);
         if ("error" in resolved) return resolved.error;
 
-        const results = await paginateAll<Approval>(
+        const { results, totalCount, truncated } = await paginateAll<Approval>(
           async (limit, offset) => {
-            const { data } = await ctx.snClient.get<ServiceNowListResponse<Approval>>(
+            const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Approval>>(
               "/api/now/table/sysapproval_approver",
               {
                 params: {
-                  sysparm_query: `sysapproval=${resolved.sysId}`,
+                  sysparm_query: `sysapproval=${resolved.sysId}^ORDERBYDESCsys_created_on`,
                   sysparm_limit: limit,
                   sysparm_offset: offset,
                   sysparm_fields:
@@ -364,7 +364,10 @@ export function registerChangeRequestTools(
                 },
               }
             );
-            return { results: data.result, totalCount: data.result.length };
+            return {
+              results: data.result,
+              totalCount: parseInt(headers["x-total-count"] || "0", 10),
+            };
           },
           { limit: 100, maxPages: 5 }
         );
@@ -374,7 +377,9 @@ export function registerChangeRequestTools(
           data: results,
           metadata: {
             change_request_sys_id: resolved.sysId,
+            total_count: totalCount,
             returned_count: results.length,
+            truncated,
           },
         };
       }

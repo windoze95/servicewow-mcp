@@ -167,6 +167,8 @@ describe("registerTaskTools", () => {
     });
     expect(result.metadata).toEqual({
       total_count: 1,
+      returned_count: 1,
+      truncated: false,
     });
   });
 });

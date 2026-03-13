@@ -371,7 +371,7 @@ describe("registerChangeRequestTools", () => {
           { sys_id: "appr-001", state: "approved", approver: "mgr-001", sysapproval: chgSysId },
         ],
       },
-      headers: {},
+      headers: { "x-total-count": "1" },
     });
 
     const result = (await handlers.get_change_request_approvals({
@@ -380,7 +380,7 @@ describe("registerChangeRequestTools", () => {
 
     expect(snClient.get).toHaveBeenCalledWith("/api/now/table/sysapproval_approver", {
       params: {
-        sysparm_query: `sysapproval=${chgSysId}`,
+        sysparm_query: `sysapproval=${chgSysId}^ORDERBYDESCsys_created_on`,
         sysparm_limit: 100,
         sysparm_offset: 0,
         sysparm_fields:

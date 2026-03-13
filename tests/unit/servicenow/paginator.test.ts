@@ -8,9 +8,11 @@ describe("paginateAll", () => {
       totalCount: 2,
     });
 
-    const results = await paginateAll(fetcher, { limit: 100 });
+    const { results, totalCount, truncated } = await paginateAll(fetcher, { limit: 100 });
 
     expect(results).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(totalCount).toBe(2);
+    expect(truncated).toBe(false);
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher).toHaveBeenCalledWith(100, 0);
   });
@@ -29,7 +31,7 @@ describe("paginateAll", () => {
       totalCount: 5,
     });
 
-    const results = await paginateAll(fetcher, { limit: 3 });
+    const { results, totalCount, truncated } = await paginateAll(fetcher, { limit: 3 });
 
     expect(results).toEqual([
       { id: 1 },
@@ -38,6 +40,8 @@ describe("paginateAll", () => {
       { id: 4 },
       { id: 5 },
     ]);
+    expect(totalCount).toBe(5);
+    expect(truncated).toBe(false);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
@@ -49,9 +53,10 @@ describe("paginateAll", () => {
       totalCount: 2,
     });
 
-    const results = await paginateAll(fetcher, { limit: 5 });
+    const { results, truncated } = await paginateAll(fetcher, { limit: 5 });
 
     expect(results).toHaveLength(2);
+    expect(truncated).toBe(false);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
@@ -61,10 +66,12 @@ describe("paginateAll", () => {
       totalCount: 1000,
     });
 
-    const results = await paginateAll(fetcher, { limit: 2, maxPages: 3 });
+    const { results, totalCount, truncated } = await paginateAll(fetcher, { limit: 2, maxPages: 3 });
 
     // 3 pages * 2 results per page = 6 results
     expect(results).toHaveLength(6);
+    expect(totalCount).toBe(1000);
+    expect(truncated).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
@@ -90,9 +97,10 @@ describe("paginateAll", () => {
       totalCount: 100,
     });
 
-    const results = await paginateAll(fetcher, { limit: 10, maxPages: 2 });
+    const { results, truncated } = await paginateAll(fetcher, { limit: 10, maxPages: 2 });
 
     expect(results).toHaveLength(20);
+    expect(truncated).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(fetcher).toHaveBeenCalledWith(10, 0);
     expect(fetcher).toHaveBeenCalledWith(10, 10);
@@ -104,9 +112,11 @@ describe("paginateAll", () => {
       totalCount: 0,
     });
 
-    const results = await paginateAll(fetcher);
+    const { results, totalCount, truncated } = await paginateAll(fetcher);
 
     expect(results).toEqual([]);
+    expect(totalCount).toBe(0);
+    expect(truncated).toBe(false);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
@@ -126,9 +136,11 @@ describe("paginateAll", () => {
       totalCount: 60,
     });
 
-    const results = await paginateAll(fetcher, { limit: 25 });
+    const { results, totalCount, truncated } = await paginateAll(fetcher, { limit: 25 });
 
     expect(results).toHaveLength(60);
+    expect(totalCount).toBe(60);
+    expect(truncated).toBe(false);
     expect(fetcher).toHaveBeenCalledTimes(3);
     expect(fetcher).toHaveBeenNthCalledWith(1, 25, 0);
     expect(fetcher).toHaveBeenNthCalledWith(2, 25, 25);
