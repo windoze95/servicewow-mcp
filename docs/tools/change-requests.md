@@ -68,7 +68,9 @@ Get approval records linked to a change request.
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `identifier` | string | Yes | Change number or sys_id |
-| `limit` | number | No | Maximum results (1-100, default 20) |
+| `offset` | number | No | Starting offset for continuation (default 0) |
+
+Auto-paginates up to 500 records (5 pages x 100). When the response metadata includes `truncated: true`, use `offset + returned_count` as the next `offset` to continue.
 
 **Returns**: Approval records with `sys_id`, `state`, `approver`, `sysapproval`, `source_table`, `comments`, `due_date`.
 

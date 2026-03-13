@@ -13,6 +13,7 @@ import {
   validateChangeNumber,
   sanitizeUpdatePayload,
 } from "../utils/validators.js";
+import { paginateAll } from "../servicenow/paginator.js";
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -342,42 +343,45 @@ export function registerChangeRequestTools(
     "get_change_request_approvals",
     "Get approval records linked to a change request.",
     {
-      identifier: z
-        .string()
-        .describe("Change number (CHG...) or sys_id"),
-      limit: z
-        .number()
-        .int()
-        .min(1)
-        .max(100)
-        .default(20)
-        .describe("Maximum results"),
+      identifier: z.string().describe("Change number (CHG...) or sys_id"),
+      offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
     },
     wrapHandler(
-      async (
-        ctx: ToolContext,
-        args: { identifier: string; limit: number }
-      ) => {
+      async (ctx: ToolContext, args: { identifier: string; offset: number }) => {
         const resolved = await resolveChangeRequestSysId(ctx, args.identifier);
         if ("error" in resolved) return resolved.error;
 
-        const { data } = await ctx.snClient.get<
-          ServiceNowListResponse<Approval>
-        >("/api/now/table/sysapproval_approver", {
-          params: {
-            sysparm_query: `sysapproval=${resolved.sysId}`,
-            sysparm_limit: args.limit,
-            sysparm_fields:
-              "sys_id,state,approver,sysapproval,source_table,comments,due_date,sys_created_on,sys_updated_on",
+        const { results, totalCount, truncated } = await paginateAll<Approval>(
+          async (limit, offset) => {
+            const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Approval>>(
+              "/api/now/table/sysapproval_approver",
+              {
+                params: {
+                  sysparm_query: `sysapproval=${resolved.sysId}^ORDERBYDESCsys_created_on`,
+                  sysparm_limit: limit,
+                  sysparm_offset: offset,
+                  sysparm_fields:
+                    "sys_id,state,approver,sysapproval,source_table,comments,due_date,sys_created_on,sys_updated_on",
+                },
+              }
+            );
+            return {
+              results: data.result,
+              totalCount: parseInt(headers["x-total-count"] || "0", 10),
+            };
           },
-        });
+          { limit: 100, maxPages: 5, startOffset: args.offset }
+        );
 
         return {
           success: true,
-          data: data.result,
+          data: results,
           metadata: {
             change_request_sys_id: resolved.sysId,
-            returned_count: data.result.length,
+            total_count: totalCount,
+            returned_count: results.length,
+            offset: args.offset,
+            truncated,
           },
         };
       }

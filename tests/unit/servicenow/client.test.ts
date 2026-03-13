@@ -112,4 +112,65 @@ describe("ServiceNowClient", () => {
       message: "ServiceNow API error (400)",
     });
   });
+
+  it("parses Retry-After header with seconds value", async () => {
+    axiosMocks.get.mockRejectedValue({
+      response: {
+        status: 429,
+        data: { error: "rate limited" },
+        headers: { "retry-after": "60" },
+      },
+    });
+
+    const client = new ServiceNowClient("https://example.service-now.com", "token-123");
+
+    await expect(client.get("/api/now/table/incident")).rejects.toMatchObject({
+      statusCode: 429,
+      retryAfterMs: 60000,
+      message: "Rate limited by ServiceNow",
+    });
+  });
+
+  it("parses Retry-After header with HTTP-date value", async () => {
+    const futureDate = new Date(Date.now() + 30000).toUTCString();
+    axiosMocks.get.mockRejectedValue({
+      response: {
+        status: 429,
+        data: { error: "rate limited" },
+        headers: { "retry-after": futureDate },
+      },
+    });
+
+    const client = new ServiceNowClient("https://example.service-now.com", "token-123");
+
+    try {
+      await client.get("/api/now/table/incident");
+      expect.fail("should have thrown");
+    } catch (error) {
+      const snError = error as { statusCode: number; retryAfterMs?: number };
+      expect(snError.statusCode).toBe(429);
+      expect(snError.retryAfterMs).toBeDefined();
+      // Should be roughly 30 seconds (allow some tolerance for test execution time)
+      expect(snError.retryAfterMs!).toBeGreaterThan(25000);
+      expect(snError.retryAfterMs!).toBeLessThanOrEqual(30000);
+    }
+  });
+
+  it("leaves retryAfterMs undefined when Retry-After header is absent", async () => {
+    axiosMocks.get.mockRejectedValue({
+      response: {
+        status: 429,
+        data: { error: "rate limited" },
+        headers: {},
+      },
+    });
+
+    const client = new ServiceNowClient("https://example.service-now.com", "token-123");
+
+    await expect(client.get("/api/now/table/incident")).rejects.toMatchObject({
+      statusCode: 429,
+      retryAfterMs: undefined,
+      message: "Rate limited by ServiceNow",
+    });
+  });
 });

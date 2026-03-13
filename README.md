@@ -64,7 +64,8 @@ Comprehensive documentation lives in [`docs/`](./docs/README.md):
 - **[Authentication](./docs/auth/README.md)** — OAuth flow, token storage, refresh
 - **[Security](./docs/security/README.md)** — Identity enforcement, input validation, rate limiting, error handling
 - **[Tools (35)](./docs/tools/README.md)** — All tools: incidents, change requests, knowledge, update sets, and more
-- **[Prompts (4)](./docs/prompts/README.md)** — Guided workflows for catalog administration
+- **[Resources (5)](./docs/resources/README.md)** — MCP resources for direct record access
+- **[Prompts (7)](./docs/prompts/README.md)** — Guided workflows for incidents, change requests, knowledge, and catalog
 - **[HTTP API](./docs/api/README.md)** — Endpoints and client configuration
 - **[Deployment](./docs/deployment/README.md)** — Docker, Caddy, native TLS, setup script, environment variables
 - **[Development](./docs/development/README.md)** — Adding tools, testing, CI pipeline
@@ -101,6 +102,26 @@ npm run test:coverage
 MCP clients automatically discover the OAuth endpoints via `/.well-known/oauth-authorization-server` and handle PKCE-based authentication. No manual link-opening required.
 
 See [Client Configuration](./docs/api/client-configuration.md) for deployment-specific examples.
+
+---
+
+## 💡 Using Prompts and Resources
+
+Once connected, the AI agent has access to **tools**, **resources**, and **prompts**.
+
+**Prompts** are guided workflow templates the agent uses to walk through multi-step operations. In Claude Code, invoke them with a slash command:
+
+```
+/servicenow:incident_triage
+/servicenow:change_request_planning
+/servicenow:build_catalog_form
+```
+
+In Claude Desktop, use the prompt picker to browse and select from available prompts.
+
+**Resources** give the agent read-only access to ServiceNow records by URI. The agent reads these automatically when it needs context — for example, reading `servicenow://me` for your profile or `servicenow://incident/{sys_id}` for an incident record.
+
+See [Prompts docs](./docs/prompts/README.md) and [Resources docs](./docs/resources/README.md) for the full list and SDK usage examples.
 
 ---
 

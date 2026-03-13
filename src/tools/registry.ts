@@ -17,6 +17,10 @@ import { registerUpdateSetTools } from "./updateSets.js";
 import { registerChangeRequestTools } from "./changeRequests.js";
 import { registerCatalogAdminTools } from "./catalogAdmin.js";
 import { registerCatalogPrompts } from "../prompts/catalog.js";
+import { registerIncidentPrompts } from "../prompts/incidents.js";
+import { registerChangeRequestPrompts } from "../prompts/changeRequests.js";
+import { registerKnowledgePrompts } from "../prompts/knowledge.js";
+import { registerResources } from "../resources/servicenow.js";
 
 export interface ToolContext {
   snClient: ServiceNowClient;
@@ -114,6 +118,10 @@ export function registerAllTools(
   registerCatalogAdminTools(server, wrapHandler);
 
   registerCatalogPrompts(server);
+  registerResources(server, getContext);
+  registerIncidentPrompts(server);
+  registerChangeRequestPrompts(server);
+  registerKnowledgePrompts(server);
 
   logger.info("All tools registered");
 }
