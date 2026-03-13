@@ -124,6 +124,46 @@ describe("createApp", () => {
     expect(response.body.redis).toBe("disconnected");
   });
 
+  it("reflects origin when ALLOWED_ORIGINS includes wildcard", async () => {
+    const redis = { ping: vi.fn().mockResolvedValue("PONG") };
+    const app = await createApp(baseConfig as any, redis as any);
+
+    const response = await request(app)
+      .get("/health")
+      .set("Origin", "https://my-app.example.com")
+      .expect(200);
+
+    expect(response.headers["access-control-allow-origin"]).toBe("https://my-app.example.com");
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+  });
+
+  it("allows specific origin when ALLOWED_ORIGINS lists it", async () => {
+    const redis = { ping: vi.fn().mockResolvedValue("PONG") };
+    const config = { ...baseConfig, ALLOWED_ORIGINS: ["https://allowed.example.com"] };
+    const app = await createApp(config as any, redis as any);
+
+    const response = await request(app)
+      .get("/health")
+      .set("Origin", "https://allowed.example.com")
+      .expect(200);
+
+    expect(response.headers["access-control-allow-origin"]).toBe("https://allowed.example.com");
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+  });
+
+  it("rejects disallowed origin with CORS error", async () => {
+    const redis = { ping: vi.fn().mockResolvedValue("PONG") };
+    const config = { ...baseConfig, ALLOWED_ORIGINS: ["https://allowed.example.com"] };
+    const app = await createApp(config as any, redis as any);
+
+    const response = await request(app)
+      .get("/health")
+      .set("Origin", "https://evil.example.com")
+      .expect(500);
+
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
   it("rejects GET /mcp with missing or unknown session", async () => {
     const redis = { ping: vi.fn().mockResolvedValue("PONG") };
     const app = await createApp(baseConfig as any, redis as any);
