@@ -34,9 +34,15 @@ export async function createApp(
   app.use(helmet());
   app.use(
     cors({
-      origin: config.ALLOWED_ORIGINS.includes("*")
-        ? "*"
-        : config.ALLOWED_ORIGINS,
+      origin: (origin, callback) => {
+        if (config.ALLOWED_ORIGINS.includes("*") || !origin) {
+          callback(null, true);
+        } else if (config.ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
       credentials: true,
     })
   );
