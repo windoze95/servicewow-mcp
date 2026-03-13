@@ -1,4 +1,5 @@
 import axios from "axios";
+import crypto from "node:crypto";
 import type { Redis } from "ioredis";
 import { TokenStore, type StoredToken } from "./tokenStore.js";
 import { type Config } from "../config.js";
@@ -34,11 +35,12 @@ export class TokenRefresher {
     token: StoredToken
   ): Promise<StoredToken> {
     const lockKey = `token_refresh_lock:${userSysId}`;
+    const lockValue = crypto.randomUUID();
 
-    // Try to acquire lock
+    // Try to acquire lock with unique value
     const acquired = await this.redis.set(
       lockKey,
-      "1",
+      lockValue,
       "EX",
       LOCK_TTL_SECONDS,
       "NX"
@@ -99,7 +101,13 @@ export class TokenRefresher {
 
       throw err;
     } finally {
-      await this.redis.del(lockKey);
+      // Only delete the lock if we still own it (compare-and-delete)
+      await this.redis.eval(
+        `if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end`,
+        1,
+        lockKey,
+        lockValue
+      );
     }
   }
 }
