@@ -123,7 +123,7 @@ describe("registerResources", () => {
       const handler = handlers.incident as TemplateHandler;
       const result = await handler(
         new URL(`servicenow://incident/${VALID_SYS_ID}`),
-        { sys_id: VALID_SYS_ID },
+        { identifier: VALID_SYS_ID },
         {}
       );
 
@@ -135,20 +135,57 @@ describe("registerResources", () => {
       expect(JSON.parse(result.contents[0].text)).toEqual(incidentData);
     });
 
-    it("returns error for invalid sys_id", async () => {
+    it("resolves incident by INC number", async () => {
+      const { handlers, snClient } = setup();
+      const incidentData = {
+        sys_id: VALID_SYS_ID,
+        number: "INC0010001",
+        short_description: "Test incident",
+      };
+      snClient.get.mockResolvedValue({ data: { result: [incidentData] } });
+
+      const handler = handlers.incident as TemplateHandler;
+      const result = await handler(
+        new URL("servicenow://incident/INC0010001"),
+        { identifier: "INC0010001" },
+        {}
+      );
+
+      expect(snClient.get).toHaveBeenCalledWith("/api/now/table/incident", {
+        params: { sysparm_query: "number=INC0010001", sysparm_limit: 1 },
+      });
+      expect(JSON.parse(result.contents[0].text)).toEqual(incidentData);
+    });
+
+    it("returns not found for unknown INC number", async () => {
+      const { handlers, snClient } = setup();
+      snClient.get.mockResolvedValue({ data: { result: [] } });
+
+      const handler = handlers.incident as TemplateHandler;
+      const result = await handler(
+        new URL("servicenow://incident/INC9999999"),
+        { identifier: "INC9999999" },
+        {}
+      );
+
+      const parsed = JSON.parse(result.contents[0].text);
+      expect(parsed.error).toContain("INC9999999");
+    });
+
+    it("returns error for invalid identifier", async () => {
       const { handlers, snClient } = setup();
 
       const handler = handlers.incident as TemplateHandler;
       const result = await handler(
         new URL("servicenow://incident/bad-id"),
-        { sys_id: "bad-id" },
+        { identifier: "bad-id" },
         {}
       );
 
       expect(snClient.get).not.toHaveBeenCalled();
       expect(result.contents).toHaveLength(1);
       const parsed = JSON.parse(result.contents[0].text);
-      expect(parsed.error).toBe("Invalid sys_id format");
+      expect(parsed.error).toContain("Invalid identifier");
     });
 
     it("returns error content when snClient throws", async () => {
@@ -158,7 +195,7 @@ describe("registerResources", () => {
       const handler = handlers.incident as TemplateHandler;
       const result = await handler(
         new URL(`servicenow://incident/${VALID_SYS_ID}`),
-        { sys_id: VALID_SYS_ID },
+        { identifier: VALID_SYS_ID },
         {}
       );
 
@@ -181,7 +218,7 @@ describe("registerResources", () => {
       const handler = handlers.change_request as TemplateHandler;
       const result = await handler(
         new URL(`servicenow://change_request/${VALID_SYS_ID}`),
-        { sys_id: VALID_SYS_ID },
+        { identifier: VALID_SYS_ID },
         {}
       );
 
@@ -192,19 +229,56 @@ describe("registerResources", () => {
       expect(JSON.parse(result.contents[0].text)).toEqual(crData);
     });
 
-    it("returns error for invalid sys_id", async () => {
+    it("resolves change request by CHG number", async () => {
+      const { handlers, snClient } = setup();
+      const crData = {
+        sys_id: VALID_SYS_ID,
+        number: "CHG0010001",
+        short_description: "Test change",
+      };
+      snClient.get.mockResolvedValue({ data: { result: [crData] } });
+
+      const handler = handlers.change_request as TemplateHandler;
+      const result = await handler(
+        new URL("servicenow://change_request/CHG0010001"),
+        { identifier: "CHG0010001" },
+        {}
+      );
+
+      expect(snClient.get).toHaveBeenCalledWith("/api/now/table/change_request", {
+        params: { sysparm_query: "number=CHG0010001", sysparm_limit: 1 },
+      });
+      expect(JSON.parse(result.contents[0].text)).toEqual(crData);
+    });
+
+    it("returns not found for unknown CHG number", async () => {
+      const { handlers, snClient } = setup();
+      snClient.get.mockResolvedValue({ data: { result: [] } });
+
+      const handler = handlers.change_request as TemplateHandler;
+      const result = await handler(
+        new URL("servicenow://change_request/CHG9999999"),
+        { identifier: "CHG9999999" },
+        {}
+      );
+
+      const parsed = JSON.parse(result.contents[0].text);
+      expect(parsed.error).toContain("CHG9999999");
+    });
+
+    it("returns error for invalid identifier", async () => {
       const { handlers, snClient } = setup();
 
       const handler = handlers.change_request as TemplateHandler;
       const result = await handler(
         new URL("servicenow://change_request/not-valid"),
-        { sys_id: "not-valid" },
+        { identifier: "not-valid" },
         {}
       );
 
       expect(snClient.get).not.toHaveBeenCalled();
       const parsed = JSON.parse(result.contents[0].text);
-      expect(parsed.error).toBe("Invalid sys_id format");
+      expect(parsed.error).toContain("Invalid identifier");
     });
 
     it("returns error content when snClient throws", async () => {
@@ -214,7 +288,7 @@ describe("registerResources", () => {
       const handler = handlers.change_request as TemplateHandler;
       const result = await handler(
         new URL(`servicenow://change_request/${VALID_SYS_ID}`),
-        { sys_id: VALID_SYS_ID },
+        { identifier: VALID_SYS_ID },
         {}
       );
 

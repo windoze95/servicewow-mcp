@@ -2,9 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type { ToolContext } from "../tools/registry.js";
-import { validateSysId } from "../utils/validators.js";
+import { validateSysId, validateIncidentNumber, validateChangeNumber } from "../utils/validators.js";
 import type {
   ServiceNowSingleResponse,
+  ServiceNowListResponse,
   User,
   Incident,
   ChangeRequest,
@@ -56,99 +57,91 @@ export function registerResources(
     }
   );
 
-  // Template resource — incident by sys_id
+  // Template resource — incident by number (INC...) or sys_id
   server.resource(
     "incident",
-    new ResourceTemplate("servicenow://incident/{sys_id}", { list: undefined }),
-    { description: "ServiceNow incident record by sys_id" },
+    new ResourceTemplate("servicenow://incident/{identifier}", { list: undefined }),
+    { description: "ServiceNow incident record by number (INC...) or sys_id" },
     async (uri, variables, extra) => {
-      const sysId = variables.sys_id as string;
+      const identifier = variables.identifier as string;
       try {
-        if (!validateSysId(sysId)) {
+        const ctx = await getContext(extra);
+        let result: Incident;
+
+        if (validateIncidentNumber(identifier)) {
+          const { data } = await ctx.snClient.get<ServiceNowListResponse<Incident>>(
+            "/api/now/table/incident",
+            { params: { sysparm_query: `number=${identifier}`, sysparm_limit: 1 } }
+          );
+          if (!data.result.length) {
+            return {
+              contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify({ error: `Incident not found: ${identifier}` }) }],
+            };
+          }
+          result = data.result[0];
+        } else if (validateSysId(identifier)) {
+          const { data } = await ctx.snClient.get<ServiceNowSingleResponse<Incident>>(
+            `/api/now/table/incident/${identifier}`
+          );
+          result = data.result;
+        } else {
           return {
-            contents: [
-              {
-                uri: uri.href,
-                mimeType: "application/json",
-                text: JSON.stringify({ error: "Invalid sys_id format" }),
-              },
-            ],
+            contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify({ error: "Invalid identifier. Provide an incident number (INC...) or 32-character sys_id." }) }],
           };
         }
-        const ctx = await getContext(extra);
-        const { data } = await ctx.snClient.get<ServiceNowSingleResponse<Incident>>(
-          `/api/now/table/incident/${sysId}`
-        );
+
         return {
-          contents: [
-            {
-              uri: uri.href,
-              mimeType: "application/json",
-              text: JSON.stringify(data.result, null, 2),
-            },
-          ],
+          contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         logger.error({ error, uri: uri.href }, "Resource read failed");
         return {
-          contents: [
-            {
-              uri: uri.href,
-              mimeType: "application/json",
-              text: JSON.stringify({
-                error: (error as { message?: string })?.message || "Failed to read resource",
-              }),
-            },
-          ],
+          contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify({ error: (error as { message?: string })?.message || "Failed to read resource" }) }],
         };
       }
     }
   );
 
-  // Template resource — change_request by sys_id
+  // Template resource — change_request by number (CHG...) or sys_id
   server.resource(
     "change_request",
-    new ResourceTemplate("servicenow://change_request/{sys_id}", { list: undefined }),
-    { description: "ServiceNow change request record by sys_id" },
+    new ResourceTemplate("servicenow://change_request/{identifier}", { list: undefined }),
+    { description: "ServiceNow change request record by number (CHG...) or sys_id" },
     async (uri, variables, extra) => {
-      const sysId = variables.sys_id as string;
+      const identifier = variables.identifier as string;
       try {
-        if (!validateSysId(sysId)) {
+        const ctx = await getContext(extra);
+        let result: ChangeRequest;
+
+        if (validateChangeNumber(identifier)) {
+          const { data } = await ctx.snClient.get<ServiceNowListResponse<ChangeRequest>>(
+            "/api/now/table/change_request",
+            { params: { sysparm_query: `number=${identifier}`, sysparm_limit: 1 } }
+          );
+          if (!data.result.length) {
+            return {
+              contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify({ error: `Change request not found: ${identifier}` }) }],
+            };
+          }
+          result = data.result[0];
+        } else if (validateSysId(identifier)) {
+          const { data } = await ctx.snClient.get<ServiceNowSingleResponse<ChangeRequest>>(
+            `/api/now/table/change_request/${identifier}`
+          );
+          result = data.result;
+        } else {
           return {
-            contents: [
-              {
-                uri: uri.href,
-                mimeType: "application/json",
-                text: JSON.stringify({ error: "Invalid sys_id format" }),
-              },
-            ],
+            contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify({ error: "Invalid identifier. Provide a change number (CHG...) or 32-character sys_id." }) }],
           };
         }
-        const ctx = await getContext(extra);
-        const { data } = await ctx.snClient.get<ServiceNowSingleResponse<ChangeRequest>>(
-          `/api/now/table/change_request/${sysId}`
-        );
+
         return {
-          contents: [
-            {
-              uri: uri.href,
-              mimeType: "application/json",
-              text: JSON.stringify(data.result, null, 2),
-            },
-          ],
+          contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         logger.error({ error, uri: uri.href }, "Resource read failed");
         return {
-          contents: [
-            {
-              uri: uri.href,
-              mimeType: "application/json",
-              text: JSON.stringify({
-                error: (error as { message?: string })?.message || "Failed to read resource",
-              }),
-            },
-          ],
+          contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify({ error: (error as { message?: string })?.message || "Failed to read resource" }) }],
         };
       }
     }
