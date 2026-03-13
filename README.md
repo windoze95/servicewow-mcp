@@ -105,6 +105,26 @@ See [Client Configuration](./docs/api/client-configuration.md) for deployment-sp
 
 ---
 
+## 💡 Using Prompts and Resources
+
+Once connected, the AI agent has access to **tools**, **resources**, and **prompts**.
+
+**Prompts** are guided workflow templates the agent uses to walk through multi-step operations. In Claude Code, invoke them with a slash command:
+
+```
+/servicenow:incident_triage
+/servicenow:change_request_planning
+/servicenow:build_catalog_form
+```
+
+In Claude Desktop, use the prompt picker to browse and select from available prompts.
+
+**Resources** give the agent read-only access to ServiceNow records by URI. The agent reads these automatically when it needs context — for example, reading `servicenow://me` for your profile or `servicenow://incident/{sys_id}` for an incident record.
+
+See [Prompts docs](./docs/prompts/README.md) and [Resources docs](./docs/resources/README.md) for the full list and SDK usage examples.
+
+---
+
 ## 🤖 Agent Instruction Files
 
 - `AGENTS.md`

@@ -8,6 +8,39 @@ MCP prompts are pre-authored instruction templates served to AI clients via `ser
 
 Unlike tools (which execute actions), prompts provide **guided context** to the AI client. When a client requests a prompt, the server returns a rich text guide that the client can use to plan and execute a series of tool calls.
 
+## How to Use Prompts
+
+Prompts are consumed by your MCP client (the AI agent), not invoked directly via HTTP. The way you trigger them depends on your client:
+
+### Claude Code (CLI)
+
+Use the slash command with the server name prefix:
+
+```
+/servicenow:incident_triage
+/servicenow:build_catalog_form
+/servicenow:change_request_planning
+```
+
+The prompt content is injected into the conversation, and Claude uses it to guide the subsequent tool calls.
+
+### Claude Desktop
+
+Open the prompt picker (the plug icon or `/` menu), select the `servicenow` server, then choose a prompt from the list. The prompt content appears in the conversation as context for Claude.
+
+### Programmatic (MCP SDK)
+
+Any MCP client can list and request prompts via the protocol:
+
+```typescript
+// List available prompts
+const { prompts } = await client.listPrompts();
+
+// Get a specific prompt
+const result = await client.getPrompt({ name: "incident_triage" });
+// result.messages contains the guide text
+```
+
 ## Available Prompts
 
 ### Catalog Administration
