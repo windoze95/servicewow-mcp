@@ -154,7 +154,7 @@ describe("registerTaskTools", () => {
       headers: { "x-total-count": "1" },
     });
 
-    const result = (await handlers.get_my_tasks({})) as any;
+    const result = (await handlers.get_my_tasks({ offset: 0 })) as any;
 
     expect(snClient.get).toHaveBeenCalledWith("/api/now/table/task", {
       params: {
@@ -168,6 +168,34 @@ describe("registerTaskTools", () => {
     expect(result.metadata).toEqual({
       total_count: 1,
       returned_count: 1,
+      offset: 0,
+      truncated: false,
+    });
+  });
+
+  it("get_my_tasks passes offset to paginator startOffset", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [{ sys_id: "task-500" }] },
+      headers: { "x-total-count": "501" },
+    });
+
+    const result = (await handlers.get_my_tasks({ offset: 500 })) as any;
+
+    expect(snClient.get).toHaveBeenCalledWith("/api/now/table/task", {
+      params: {
+        sysparm_query: `assigned_to=${userSysId}^active=true^ORDERBYDESCsys_updated_on`,
+        sysparm_limit: 100,
+        sysparm_offset: 500,
+        sysparm_fields:
+          "sys_id,number,short_description,state,priority,assigned_to,assignment_group,sys_class_name,opened_at,due_date,sys_updated_on",
+      },
+    });
+    expect(result.metadata).toEqual({
+      total_count: 501,
+      returned_count: 1,
+      offset: 500,
       truncated: false,
     });
   });

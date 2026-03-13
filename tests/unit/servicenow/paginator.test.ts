@@ -120,6 +120,32 @@ describe("paginateAll", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("applies startOffset to all fetcher calls", async () => {
+    const fetcher = vi.fn();
+
+    fetcher.mockResolvedValueOnce({
+      results: Array.from({ length: 100 }, (_, i) => ({ id: 200 + i })),
+      totalCount: 350,
+    });
+    fetcher.mockResolvedValueOnce({
+      results: Array.from({ length: 50 }, (_, i) => ({ id: 300 + i })),
+      totalCount: 350,
+    });
+
+    const { results, totalCount, truncated } = await paginateAll(fetcher, {
+      limit: 100,
+      maxPages: 5,
+      startOffset: 200,
+    });
+
+    expect(results).toHaveLength(150);
+    expect(totalCount).toBe(350);
+    expect(truncated).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenNthCalledWith(1, 100, 200);
+    expect(fetcher).toHaveBeenNthCalledWith(2, 100, 300);
+  });
+
   it("calls fetcher with correct limit and offset values for each page", async () => {
     const fetcher = vi.fn();
 

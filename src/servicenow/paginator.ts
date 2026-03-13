@@ -1,6 +1,7 @@
 export interface PaginationOptions {
   limit?: number; // per-page, default 100
   maxPages?: number; // safety cap, default 50
+  startOffset?: number; // starting offset, default 0
 }
 
 export interface PaginationResult<T> {
@@ -18,11 +19,12 @@ export async function paginateAll<T>(
 ): Promise<PaginationResult<T>> {
   const limit = options?.limit ?? 100;
   const maxPages = options?.maxPages ?? 50;
+  const startOffset = options?.startOffset ?? 0;
   const allResults: T[] = [];
   let totalCount = 0;
 
   for (let page = 0; page < maxPages; page++) {
-    const offset = page * limit;
+    const offset = startOffset + page * limit;
     const response = await fetcher(limit, offset);
     totalCount = response.totalCount;
     allResults.push(...response.results);

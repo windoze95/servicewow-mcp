@@ -361,7 +361,7 @@ describe("registerChangeRequestTools", () => {
 
   // --- get_change_request_approvals ---
 
-  it("get_change_request_approvals returns linked approvals", async () => {
+  it("get_change_request_approvals returns linked approvals with offset in metadata", async () => {
     const { handlers, snClient } = setup();
     const chgSysId = "0123456789abcdef0123456789abcdef";
 
@@ -376,6 +376,7 @@ describe("registerChangeRequestTools", () => {
 
     const result = (await handlers.get_change_request_approvals({
       identifier: chgSysId,
+      offset: 0,
     })) as any;
 
     expect(snClient.get).toHaveBeenCalledWith("/api/now/table/sysapproval_approver", {
@@ -390,6 +391,37 @@ describe("registerChangeRequestTools", () => {
     expect(result.success).toBe(true);
     expect(result.data).toHaveLength(1);
     expect(result.metadata.change_request_sys_id).toBe(chgSysId);
+    expect(result.metadata.offset).toBe(0);
+  });
+
+  it("get_change_request_approvals passes offset to paginator startOffset", async () => {
+    const { handlers, snClient } = setup();
+    const chgSysId = "0123456789abcdef0123456789abcdef";
+
+    snClient.get.mockResolvedValue({
+      data: {
+        result: [{ sys_id: "appr-500", state: "requested", approver: "mgr-001", sysapproval: chgSysId }],
+      },
+      headers: { "x-total-count": "501" },
+    });
+
+    const result = (await handlers.get_change_request_approvals({
+      identifier: chgSysId,
+      offset: 500,
+    })) as any;
+
+    expect(snClient.get).toHaveBeenCalledWith("/api/now/table/sysapproval_approver", {
+      params: {
+        sysparm_query: `sysapproval=${chgSysId}^ORDERBYDESCsys_created_on`,
+        sysparm_limit: 100,
+        sysparm_offset: 500,
+        sysparm_fields:
+          "sys_id,state,approver,sysapproval,source_table,comments,due_date,sys_created_on,sys_updated_on",
+      },
+    });
+    expect(result.success).toBe(true);
+    expect(result.metadata.offset).toBe(500);
+    expect(result.metadata.returned_count).toBe(1);
   });
 
   it("get_change_request_approvals resolves CHG number", async () => {

@@ -344,9 +344,10 @@ export function registerChangeRequestTools(
     "Get approval records linked to a change request.",
     {
       identifier: z.string().describe("Change number (CHG...) or sys_id"),
+      offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
     },
     wrapHandler(
-      async (ctx: ToolContext, args: { identifier: string }) => {
+      async (ctx: ToolContext, args: { identifier: string; offset: number }) => {
         const resolved = await resolveChangeRequestSysId(ctx, args.identifier);
         if ("error" in resolved) return resolved.error;
 
@@ -369,7 +370,7 @@ export function registerChangeRequestTools(
               totalCount: parseInt(headers["x-total-count"] || "0", 10),
             };
           },
-          { limit: 100, maxPages: 5 }
+          { limit: 100, maxPages: 5, startOffset: args.offset }
         );
 
         return {
@@ -379,6 +380,7 @@ export function registerChangeRequestTools(
             change_request_sys_id: resolved.sysId,
             total_count: totalCount,
             returned_count: results.length,
+            offset: args.offset,
             truncated,
           },
         };

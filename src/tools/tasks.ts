@@ -26,8 +26,10 @@ export function registerTaskTools(
   server.tool(
     "get_my_tasks",
     "Get all open tasks assigned to the authenticated user across all task types (incidents, requests, changes, etc.).",
-    {},
-    wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
+    {
+      offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
+    },
+    wrapHandler(async (ctx: ToolContext, args: { offset: number }) => {
       const { results, totalCount, truncated } = await paginateAll<Task>(
         async (limit, offset) => {
           const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Task>>(
@@ -47,7 +49,7 @@ export function registerTaskTools(
             totalCount: parseInt(headers["x-total-count"] || "0", 10),
           };
         },
-        { limit: 100, maxPages: 5 }
+        { limit: 100, maxPages: 5, startOffset: args.offset }
       );
 
       return {
@@ -59,6 +61,7 @@ export function registerTaskTools(
         metadata: {
           total_count: totalCount,
           returned_count: results.length,
+          offset: args.offset,
           truncated,
         },
       };
@@ -69,8 +72,10 @@ export function registerTaskTools(
   server.tool(
     "get_my_approvals",
     "Get pending approvals for the authenticated user.",
-    {},
-    wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
+    {
+      offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
+    },
+    wrapHandler(async (ctx: ToolContext, args: { offset: number }) => {
       const { results, totalCount, truncated } = await paginateAll<Approval>(
         async (limit, offset) => {
           const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Approval>>(
@@ -90,7 +95,7 @@ export function registerTaskTools(
             totalCount: parseInt(headers["x-total-count"] || "0", 10),
           };
         },
-        { limit: 100, maxPages: 5 }
+        { limit: 100, maxPages: 5, startOffset: args.offset }
       );
 
       return {
@@ -102,6 +107,7 @@ export function registerTaskTools(
         metadata: {
           total_count: totalCount,
           returned_count: results.length,
+          offset: args.offset,
           truncated,
         },
       };
