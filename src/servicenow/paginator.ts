@@ -33,5 +33,6 @@ export async function paginateAll<T>(
     }
   }
 
-  return { results: allResults, totalCount, truncated: true };
+  const truncated = startOffset + allResults.length < totalCount;
+  return { results: allResults, totalCount, truncated };
 }

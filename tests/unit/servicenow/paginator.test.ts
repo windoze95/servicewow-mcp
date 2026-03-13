@@ -120,6 +120,38 @@ describe("paginateAll", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("returns truncated false when maxPages exactly exhausts all data", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      results: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+      totalCount: 500,
+    });
+
+    const { results, totalCount, truncated } = await paginateAll(fetcher, { limit: 100, maxPages: 5 });
+
+    expect(results).toHaveLength(500);
+    expect(totalCount).toBe(500);
+    expect(truncated).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(5);
+  });
+
+  it("returns truncated false when startOffset plus fetched results reaches totalCount", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      results: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+      totalCount: 600,
+    });
+
+    const { results, totalCount, truncated } = await paginateAll(fetcher, {
+      limit: 100,
+      maxPages: 1,
+      startOffset: 500,
+    });
+
+    expect(results).toHaveLength(100);
+    expect(totalCount).toBe(600);
+    expect(truncated).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it("applies startOffset to all fetcher calls", async () => {
     const fetcher = vi.fn();
 
