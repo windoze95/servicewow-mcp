@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ToolContext } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type { ServiceNowListResponse, ServiceNowSingleResponse, User, Group } from "../servicenow/types.js";
-import { buildEncodedQuery, type QueryFilter } from "../servicenow/queryBuilder.js";
+import { sanitizeValue } from "../servicenow/queryBuilder.js";
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -22,8 +22,7 @@ export function registerUserTools(
       limit: z.number().int().min(1).max(50).default(10).describe("Maximum results to return"),
     },
     wrapHandler(async (ctx: ToolContext, args: { query: string; limit: number }) => {
-      const filters: QueryFilter[] = [];
-      const q = args.query;
+      const q = sanitizeValue(args.query);
 
       // Build OR query for name, email, employee_number
       const encodedQuery = `nameLIKE${q}^ORemail=${q}^ORemployee_number=${q}^ORuser_name=${q}`;
@@ -66,7 +65,7 @@ export function registerUserTools(
         "/api/now/table/sys_user_group",
         {
           params: {
-            sysparm_query: `nameLIKE${args.query}^active=true`,
+            sysparm_query: `nameLIKE${sanitizeValue(args.query)}^active=true`,
             sysparm_limit: args.limit,
             sysparm_fields: "sys_id,name,description,manager,email,active,type",
           },

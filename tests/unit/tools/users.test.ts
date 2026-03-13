@@ -128,6 +128,45 @@ describe("registerUserTools", () => {
     });
   });
 
+  it("lookup_user escapes encoded query injection characters", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.lookup_user({
+      query: "test^NQassigned_to=admin",
+      limit: 10,
+    });
+
+    const call = snClient.get.mock.calls[0];
+    const query = call[1].params.sysparm_query;
+    // Caret must be escaped so it cannot break query logic
+    expect(query).toContain("nameLIKEtest\\^NQassigned_to=admin");
+    // No unescaped ^NQ (which would start a new query)
+    expect(query).not.toMatch(/[^\\]\^NQ/);
+  });
+
+  it("lookup_group escapes encoded query injection characters", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.lookup_group({
+      query: "IT^active=false",
+      limit: 10,
+    });
+
+    const call = snClient.get.mock.calls[0];
+    const query = call[1].params.sysparm_query;
+    expect(query).toBe("nameLIKEIT\\^active=false^active=true");
+  });
+
   it("get_my_profile returns authenticated user with sys_user self_link", async () => {
     const { handlers, snClient } = setup();
 

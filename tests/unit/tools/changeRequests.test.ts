@@ -121,6 +121,29 @@ describe("registerChangeRequestTools", () => {
     expect(query).toContain("assignment_groupLIKECAB");
   });
 
+  it("search_change_requests escapes encoded query injection characters", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_change_requests({
+      query: "test^NQassigned_to=admin",
+      state: "New^active=false",
+      type: "Normal,Emergency",
+      limit: 10,
+      offset: 0,
+    });
+
+    const call = snClient.get.mock.calls[0];
+    const query = call[1].params.sysparm_query;
+    expect(query).toContain("short_descriptionLIKEtest\\^NQassigned_to=admin");
+    expect(query).toContain("state=New\\^active=false");
+    expect(query).toContain("type=Normal\\,Emergency");
+  });
+
   // --- get_change_request ---
 
   it("get_change_request resolves by CHG number and returns self_link", async () => {

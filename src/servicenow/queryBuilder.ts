@@ -17,7 +17,7 @@ export function validateFieldName(field: string): boolean {
   return FIELD_NAME_REGEX.test(field);
 }
 
-function sanitizeValue(value: string): string {
+export function sanitizeValue(value: string): string {
   // Escape characters that have special meaning in encoded queries
   return value
     .replace(/\\/g, "\\\\")
