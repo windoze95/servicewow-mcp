@@ -12,6 +12,7 @@ import {
   validateIncidentNumber,
   sanitizeUpdatePayload,
 } from "../utils/validators.js";
+import { sanitizeValue } from "../servicenow/queryBuilder.js";
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -75,19 +76,19 @@ export function registerIncidentTools(
         const queryParts: string[] = [];
 
         if (args.query) {
-          queryParts.push(`short_descriptionLIKE${args.query}`);
+          queryParts.push(`short_descriptionLIKE${sanitizeValue(args.query)}`);
         }
         if (args.state) {
-          queryParts.push(`state=${args.state}`);
+          queryParts.push(`state=${sanitizeValue(args.state)}`);
         }
         if (args.priority) {
-          queryParts.push(`priority=${args.priority}`);
+          queryParts.push(`priority=${sanitizeValue(args.priority)}`);
         }
         if (args.assigned_to_me) {
           queryParts.push(`assigned_to=${ctx.userSysId}`);
         }
         if (args.assignment_group) {
-          queryParts.push(`assignment_groupLIKE${args.assignment_group}`);
+          queryParts.push(`assignment_groupLIKE${sanitizeValue(args.assignment_group)}`);
         }
 
         queryParts.push("ORDERBYDESCsys_updated_on");

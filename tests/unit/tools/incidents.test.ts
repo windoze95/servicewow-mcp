@@ -242,6 +242,48 @@ describe("registerIncidentTools", () => {
     expect(query).toContain("assignment_groupLIKENetwork");
   });
 
+  it("search_incidents escapes encoded query injection characters in query", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_incidents({
+      query: "test^NQassigned_to=admin",
+      limit: 10,
+      offset: 0,
+    });
+
+    const call = snClient.get.mock.calls[0];
+    const query = call[1].params.sysparm_query;
+    expect(query).toContain("short_descriptionLIKEtest\\^NQassigned_to=admin");
+    // No unescaped ^NQ (which would start a new query)
+    expect(query).not.toMatch(/[^\\]\^NQ/);
+  });
+
+  it("search_incidents escapes injection characters in state and priority", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_incidents({
+      state: "New^NQpriority=1",
+      priority: "1,2",
+      limit: 10,
+      offset: 0,
+    });
+
+    const call = snClient.get.mock.calls[0];
+    const query = call[1].params.sysparm_query;
+    expect(query).toContain("state=New\\^NQpriority=1");
+    expect(query).toContain("priority=1\\,2");
+  });
+
   it("get_incident resolves by sys_id directly", async () => {
     const { handlers, snClient } = setup();
     const sysId = "0123456789abcdef0123456789abcdef";

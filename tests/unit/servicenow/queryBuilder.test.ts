@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildEncodedQuery,
   buildSimpleQuery,
+  sanitizeValue,
   validateFieldName,
   type QueryFilter,
 } from "../../../src/servicenow/queryBuilder.js";
@@ -67,6 +68,28 @@ describe("queryBuilder", () => {
       ];
 
       expect(() => buildEncodedQuery(filters)).toThrow("Invalid field name");
+    });
+  });
+
+  describe("sanitizeValue", () => {
+    it("should escape carets", () => {
+      expect(sanitizeValue("test^value")).toBe("test\\^value");
+    });
+
+    it("should escape commas", () => {
+      expect(sanitizeValue("a,b")).toBe("a\\,b");
+    });
+
+    it("should escape backslashes", () => {
+      expect(sanitizeValue("path\\to")).toBe("path\\\\to");
+    });
+
+    it("should escape multiple special characters", () => {
+      expect(sanitizeValue("a^b,c\\d")).toBe("a\\^b\\,c\\\\d");
+    });
+
+    it("should return plain strings unchanged", () => {
+      expect(sanitizeValue("hello world")).toBe("hello world");
     });
   });
 
