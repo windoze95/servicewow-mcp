@@ -12,6 +12,7 @@ Multiple deployment options are available depending on your environment.
 | **Docker + Caddy Overlay** | Public internet with automatic TLS | [Docker (Caddy)](./docker-caddy.md) |
 | **Native TLS** | Non-Docker environments with your own certs | [Native TLS](./native-tls.md) |
 | **Setup Script** | One-shot Linux VM provisioning | [Setup Script](./setup-script.md) |
+| **RHEL 9 Packages** | Package requirements for RHEL 9 VMs | [RHEL 9 Packages](./rhel9-packages.md) |
 
 ## Configuration
 
