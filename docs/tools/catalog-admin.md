@@ -52,9 +52,10 @@ Create a form variable (field) on a catalog item.
 | `help_text` | string | No | Help text |
 | `hidden` | boolean | No | Hidden (default false) |
 | `read_only` | boolean | No | Read only (default false) |
-| `validate_regex` | string | No | Regex validation sys_id (`question_regex` record) for input format enforcement |
+| `attributes` | string | No | Widget attributes (e.g. `max_length=4`) |
+| `validate_regex` | string | No | Regex validation — sys_id or name of a `question_regex` record (e.g. `number`) |
 
-> **Tip**: Use `validate_regex` for simple format constraints (numeric, email, IP) instead of writing client scripts. It's declarative, works on all UI types, and requires no JavaScript.
+> **Tip**: Use `validate_regex` for simple format constraints (numeric, email, IP) instead of writing client scripts. It's declarative, works on all UI types, and requires no JavaScript. You can pass either the sys_id or the display name (e.g. `"number"`).
 
 ## `update_catalog_variable`
 

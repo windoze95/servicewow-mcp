@@ -213,7 +213,8 @@ export function registerCatalogAdminTools(
       help_text: z.string().optional().describe("Help text"),
       hidden: z.boolean().optional().describe("Hidden (default false)"),
       read_only: z.boolean().optional().describe("Read only (default false)"),
-      validate_regex: z.string().optional().describe("Regex validation sys_id (question_regex record) for input format enforcement"),
+      attributes: z.string().optional().describe("Widget attributes (e.g. max_length=4)"),
+      validate_regex: z.string().optional().describe("Regex validation — sys_id or name of a question_regex record (e.g. 'number')"),
     },
     wrapHandler(
       async (
@@ -231,6 +232,7 @@ export function registerCatalogAdminTools(
           help_text?: string;
           hidden?: boolean;
           read_only?: boolean;
+          attributes?: string;
           validate_regex?: string;
         }
       ) => {
@@ -241,17 +243,6 @@ export function registerCatalogAdminTools(
               code: "VALIDATION_ERROR",
               message:
                 "Invalid cat_item sys_id format. Must be a 32-character hex string.",
-            },
-          };
-        }
-
-        if (args.validate_regex && !validateSysId(args.validate_regex)) {
-          return {
-            success: false,
-            error: {
-              code: "VALIDATION_ERROR",
-              message:
-                "Invalid validate_regex sys_id format. Must be a 32-character hex string (question_regex record).",
             },
           };
         }
@@ -273,6 +264,7 @@ export function registerCatalogAdminTools(
         if (args.help_text !== undefined) body.help_text = args.help_text;
         if (args.hidden !== undefined) body.hidden = args.hidden;
         if (args.read_only !== undefined) body.read_only = args.read_only;
+        if (args.attributes !== undefined) body.attributes = args.attributes;
         if (args.validate_regex !== undefined) body.validate_regex = args.validate_regex;
 
         const { data } = await ctx.snClient.post<

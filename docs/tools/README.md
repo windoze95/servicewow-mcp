@@ -1,6 +1,6 @@
 [docs](../README.md) / tools
 
-# Tools (35)
+# Tools (36)
 
 All MCP tools provided by the server, grouped by domain.
 
@@ -41,8 +41,9 @@ All MCP tools provided by the server, grouped by domain.
 | 31 | `create_catalog_client_script` | [Catalog Admin](./catalog-admin.md) | Create a client-side script |
 | 32 | `create_catalog_ui_policy` | [Catalog Admin](./catalog-admin.md) | Create a UI policy |
 | 33 | `create_catalog_ui_policy_action` | [Catalog Admin](./catalog-admin.md) | Create a UI policy action |
-| 34 | `change_update_set` | [Update Sets](./update-sets.md) | Change the current update set |
-| 35 | `create_update_set` | [Update Sets](./update-sets.md) | Create a new update set |
+| 34 | `get_current_update_set` | [Update Sets](./update-sets.md) | Get the current update set |
+| 35 | `change_update_set` | [Update Sets](./update-sets.md) | Change the current update set |
+| 36 | `create_update_set` | [Update Sets](./update-sets.md) | Create a new update set |
 
 ## Common Patterns
 

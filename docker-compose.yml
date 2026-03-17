@@ -5,10 +5,12 @@ services:
     build: .
     container_name: servicenow-mcp
     restart: unless-stopped
-    expose:
-      - "${MCP_PORT:-8080}"
+    ports:
+      - "${MCP_PORT:-8080}:${MCP_PORT:-8080}"
     env_file:
       - .env
+    environment:
+      REDIS_URL: "${DOCKER_REDIS_URL:-redis://:changeme@redis:6379}"
     depends_on:
       redis:
         condition: service_healthy

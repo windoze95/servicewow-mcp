@@ -32,6 +32,60 @@ export function registerUpdateSetTools(
   wrapHandler: WrapHandler
 ): void {
   server.tool(
+    "get_current_update_set",
+    "Get the authenticated user's current ServiceNow update set.",
+    {},
+    wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
+      const { data: preferenceData } = await ctx.snClient.get<
+        ServiceNowListResponse<UserPreferenceRecord>
+      >("/api/now/table/sys_user_preference", {
+        params: {
+          sysparm_query: `name=sys_update_set^user=${ctx.userSysId}`,
+          sysparm_limit: 1,
+          sysparm_fields: "sys_id,name,user,value",
+        },
+      });
+
+      if (!preferenceData.result.length || !preferenceData.result[0].value) {
+        return {
+          success: true,
+          data: {
+            current_update_set: null,
+            message:
+              "No update set preference found. The instance Default update set is active.",
+          },
+        };
+      }
+
+      const updateSetSysId = preferenceData.result[0].value;
+      const { data: updateSetData } = await ctx.snClient.get<
+        ServiceNowSingleResponse<UpdateSetRecord>
+      >(`/api/now/table/sys_update_set/${updateSetSysId}`, {
+        params: {
+          sysparm_fields: "sys_id,name,state,application,sys_updated_on",
+        },
+      });
+
+      return {
+        success: true,
+        data: {
+          current_update_set: {
+            sys_id: updateSetData.result.sys_id,
+            name: updateSetData.result.name,
+            state: updateSetData.result.state,
+            application: updateSetData.result.application,
+            self_link: buildRecordUrl(
+              ctx.instanceUrl,
+              "sys_update_set",
+              updateSetData.result.sys_id
+            ),
+          },
+        },
+      };
+    })
+  );
+
+  server.tool(
     "change_update_set",
     "Change the authenticated user's current ServiceNow update set by sys_id or name.",
     {

@@ -1,8 +1,22 @@
 [docs](../README.md) / [tools](./README.md) / update-sets
 
-# Update Set Tools (2)
+# Update Set Tools (3)
 
 Tools for managing ServiceNow update sets. Update sets track configuration changes for deployment across instances.
+
+## `get_current_update_set`
+
+Get the authenticated user's current ServiceNow update set.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+
+_No parameters._
+
+**Behavior**:
+1. Reads the user's `sys_update_set` preference from `sys_user_preference`
+2. If no preference is set, returns `current_update_set: null` with a message indicating the Default update set is active
+3. If set, fetches and returns the full update set details
 
 ## `change_update_set`
 
