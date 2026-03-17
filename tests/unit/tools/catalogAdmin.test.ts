@@ -263,24 +263,27 @@ describe("registerCatalogAdminTools", () => {
     expect(snClient.post).not.toHaveBeenCalled();
   });
 
-  it("create_catalog_variable returns VALIDATION_ERROR for invalid validate_regex", async () => {
+  it("create_catalog_variable accepts validate_regex by name", async () => {
     const { handlers, snClient } = setup();
+
+    snClient.post.mockResolvedValue({
+      data: { result: { sys_id: validSysId, name: "server_count" } },
+    });
 
     const result = (await handlers.create_catalog_variable({
       cat_item: validSysId,
       name: "server_count",
       question_text: "Number of Servers",
       type: "single_line_text",
-      validate_regex: "not-a-sys-id",
+      validate_regex: "number",
     })) as any;
 
-    expect(result.success).toBe(false);
-    expect(result.error.code).toBe("VALIDATION_ERROR");
-    expect(result.error.message).toContain("validate_regex");
-    expect(snClient.post).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    const body = snClient.post.mock.calls[0][1];
+    expect(body.validate_regex).toBe("number");
   });
 
-  it("create_catalog_variable includes validate_regex when provided", async () => {
+  it("create_catalog_variable accepts validate_regex by sys_id", async () => {
     const { handlers, snClient } = setup();
     const regexSysId = "aabbccddaabbccddaabbccddaabbccdd";
 
@@ -298,6 +301,25 @@ describe("registerCatalogAdminTools", () => {
 
     const body = snClient.post.mock.calls[0][1];
     expect(body.validate_regex).toBe(regexSysId);
+  });
+
+  it("create_catalog_variable includes attributes in POST body", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.post.mockResolvedValue({
+      data: { result: { sys_id: validSysId, name: "site_number" } },
+    });
+
+    await handlers.create_catalog_variable({
+      cat_item: validSysId,
+      name: "site_number",
+      question_text: "Site Number",
+      type: "single_line_text",
+      attributes: "max_length=4",
+    });
+
+    const body = snClient.post.mock.calls[0][1];
+    expect(body.attributes).toBe("max_length=4");
   });
 
   // --- update_catalog_variable ---
