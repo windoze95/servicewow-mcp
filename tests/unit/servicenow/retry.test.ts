@@ -352,15 +352,15 @@ describe("withRetry", () => {
       maxDelayMs: 5000,
     });
 
-    // initialDelayMs (50000) > maxDelayMs (5000), so capped at 5000 + 10% jitter = 5500
-    await vi.advanceTimersByTimeAsync(5500);
+    // Jitter should not push the retry delay beyond the configured max.
+    await vi.advanceTimersByTimeAsync(5000);
 
     const result = await promise;
 
     expect(result).toBe("ok");
     expect(loggerMocks.warn).toHaveBeenCalledWith(
       expect.objectContaining({
-        delayMs: 5500,
+        delayMs: 5000,
       }),
       "Retrying ServiceNow API call"
     );
