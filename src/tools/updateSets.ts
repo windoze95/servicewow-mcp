@@ -4,6 +4,7 @@ import type { ToolContext } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type { ServiceNowListResponse, ServiceNowSingleResponse } from "../servicenow/types.js";
 import { validateSysId } from "../utils/validators.js";
+import { sanitizeValue } from "../servicenow/queryBuilder.js";
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -96,9 +97,10 @@ export function registerUpdateSetTools(
     },
     wrapHandler(async (ctx: ToolContext, args: { identifier: string }) => {
       const isSysId = validateSysId(args.identifier);
+      const safeIdentifier = sanitizeValue(args.identifier);
       const encodedQuery = isSysId
-        ? `sys_id=${args.identifier}^state=in progress`
-        : `name=${args.identifier}^state=in progress^ORDERBYDESCsys_updated_on`;
+        ? `sys_id=${safeIdentifier}^state=in progress`
+        : `name=${safeIdentifier}^state=in progress^ORDERBYDESCsys_updated_on`;
 
       const { data: updateSetData } = await ctx.snClient.get<
         ServiceNowListResponse<UpdateSetRecord>
