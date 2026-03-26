@@ -31,6 +31,9 @@ export async function paginateAll<T>(
     if (response.results.length < limit) {
       return { results: allResults, totalCount, truncated: false };
     }
+    if (allResults.length >= totalCount) {
+      return { results: allResults, totalCount, truncated: false };
+    }
   }
 
   const truncated = startOffset + allResults.length < totalCount;
