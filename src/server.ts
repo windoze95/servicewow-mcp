@@ -141,15 +141,20 @@ export async function createApp(
   });
 
   // GET /mcp — SSE stream for notifications (Streamable HTTP spec)
+  // Creates a new session if no valid session ID is provided
   app.get("/mcp", bearerAuth, async (req: Request, res: Response) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
-    if (!sessionId || !sessions.has(sessionId)) {
-      res.status(400).json({ error: "Invalid or missing session ID" });
+    if (sessionId && sessions.has(sessionId)) {
+      // Existing session — open SSE stream
+      const entry = sessions.get(sessionId)!;
+      await entry.transport.handleRequest(req, res);
       return;
     }
 
-    const entry = sessions.get(sessionId)!;
+    // No session or unknown session — create new session and return SSE stream
+    const entry = createMcpSession();
+    await entry.server.connect(entry.transport);
     await entry.transport.handleRequest(req, res);
   });
 
