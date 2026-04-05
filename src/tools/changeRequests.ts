@@ -15,6 +15,7 @@ import {
 } from "../utils/validators.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 import { paginateAll } from "../servicenow/paginator.js";
+import type { ServiceNowApiError } from "../servicenow/client.js";
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -208,9 +209,28 @@ export function registerChangeRequestTools(
         };
       }
 
-      const { data } = await ctx.snClient.get<
-        ServiceNowSingleResponse<ChangeRequest> | ServiceNowListResponse<ChangeRequest>
-      >(path, { params });
+      let data: ServiceNowSingleResponse<ChangeRequest> | ServiceNowListResponse<ChangeRequest>;
+      try {
+        ({ data } = await ctx.snClient.get<
+          ServiceNowSingleResponse<ChangeRequest> | ServiceNowListResponse<ChangeRequest>
+        >(path, { params }));
+      } catch (err) {
+        if (
+          typeof err === "object" &&
+          err !== null &&
+          "statusCode" in err &&
+          (err as ServiceNowApiError).statusCode === 404
+        ) {
+          return {
+            success: false,
+            error: {
+              code: "NOT_FOUND",
+              message: `No change request found with identifier: ${args.identifier}`,
+            },
+          };
+        }
+        throw err;
+      }
 
       const result = "result" in data
         ? Array.isArray(data.result)
