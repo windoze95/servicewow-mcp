@@ -164,12 +164,22 @@ describe("createApp", () => {
     expect(response.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
-  it("rejects GET /mcp with missing or unknown session", async () => {
+  it("creates session on GET /mcp when no session ID provided", async () => {
     const redis = { ping: vi.fn().mockResolvedValue("PONG") };
     const app = await createApp(baseConfig as any, redis as any);
 
-    await request(app).get("/mcp").expect(400);
-    await request(app).get("/mcp").set("mcp-session-id", "missing").expect(400);
+    // GET /mcp without session should create a new session and return SSE stream
+    await request(app).get("/mcp").expect(200);
+    expect(mocks.transportInstances.length).toBe(1);
+  });
+
+  it("creates session on GET /mcp with unknown session ID", async () => {
+    const redis = { ping: vi.fn().mockResolvedValue("PONG") };
+    const app = await createApp(baseConfig as any, redis as any);
+
+    // GET /mcp with unknown session ID should create a new session
+    await request(app).get("/mcp").set("mcp-session-id", "missing").expect(200);
+    expect(mocks.transportInstances.length).toBe(1);
   });
 
   it("rejects DELETE /mcp for missing session", async () => {
@@ -227,6 +237,7 @@ describe("createApp", () => {
       .expect(200);
 
     expect(transport.close).toHaveBeenCalledTimes(1);
-    await request(app).get("/mcp").set("mcp-session-id", sessionId).expect(400);
+    // After session deletion, GET /mcp with old session ID creates a new session
+    await request(app).get("/mcp").set("mcp-session-id", sessionId).expect(200);
   });
 });
