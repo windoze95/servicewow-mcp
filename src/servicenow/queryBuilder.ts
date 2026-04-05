@@ -25,7 +25,10 @@ export function sanitizeValue(value: string): string {
     .replace(/,/g, "\\,");
 }
 
-export function buildEncodedQuery(filters: QueryFilter[]): string {
+export function buildEncodedQuery(
+  filters: QueryFilter[],
+  orderBy?: OrderByClause
+): string {
   const parts: string[] = [];
 
   for (const filter of filters) {
@@ -44,22 +47,18 @@ export function buildEncodedQuery(filters: QueryFilter[]): string {
       case "ISNOTEMPTY":
         parts.push(`${filter.field}ISNOTEMPTY`);
         break;
-      case "LIKE":
-      case "STARTSWITH":
-      case "ENDSWITH":
-      case "CONTAINS":
-      case "DOES NOT CONTAIN":
-      case "IN":
-      case "NOT IN":
-        parts.push(`${filter.field}${filter.operator}${sanitizedValue}`);
-        break;
       default:
         parts.push(`${filter.field}${filter.operator}${sanitizedValue}`);
         break;
     }
   }
 
-  return parts.join("^");
+  const base = parts.join("^");
+  if (!orderBy) return base;
+  const clause = orderBy.direction === "DESC"
+    ? `ORDERBYDESC${orderBy.field}`
+    : `ORDERBY${orderBy.field}`;
+  return base ? `${base}^${clause}` : clause;
 }
 
 export function buildSimpleQuery(
