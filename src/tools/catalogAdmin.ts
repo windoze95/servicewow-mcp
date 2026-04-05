@@ -420,9 +420,7 @@ export function registerCatalogAdminTools(
               .filter(Boolean);
 
             if (setIds.length > 0) {
-              const setQuery = setIds
-                .map((id) => `variable_set=${id}`)
-                .join("^OR");
+              const setQuery = `variable_setIN${setIds.join(",")}`;
               const { data: setVarData } = await ctx.snClient.get<
                 ServiceNowListResponse<CatalogVariable>
               >("/api/now/table/item_option_new", {
