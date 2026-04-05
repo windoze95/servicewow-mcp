@@ -13,8 +13,12 @@ import {
   validateChangeNumber,
   sanitizeUpdatePayload,
 } from "../utils/validators.js";
-import { sanitizeValue } from "../servicenow/queryBuilder.js";
+import {
+  buildEncodedQuery,
+} from "../servicenow/queryBuilder.js";
+import type { QueryFilter } from "../servicenow/queryBuilder.js";
 import { paginateAll } from "../servicenow/paginator.js";
+import type { ServiceNowApiError } from "../servicenow/client.js";
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -125,34 +129,34 @@ export function registerChangeRequestTools(
           offset: number;
         }
       ) => {
-        const queryParts: string[] = [];
+        const filters: QueryFilter[] = [];
 
         if (args.query) {
-          queryParts.push(`short_descriptionLIKE${sanitizeValue(args.query)}`);
+          filters.push({ field: "short_description", operator: "LIKE", value: args.query });
         }
         if (args.state) {
-          queryParts.push(`state=${sanitizeValue(args.state)}`);
+          filters.push({ field: "state", operator: "=", value: args.state });
         }
         if (args.type) {
-          queryParts.push(`type=${sanitizeValue(args.type)}`);
+          filters.push({ field: "type", operator: "=", value: args.type });
         }
         if (args.priority) {
-          queryParts.push(`priority=${sanitizeValue(args.priority)}`);
+          filters.push({ field: "priority", operator: "=", value: args.priority });
         }
         if (args.assigned_to_me) {
-          queryParts.push(`assigned_to=${ctx.userSysId}`);
+          filters.push({ field: "assigned_to", operator: "=", value: ctx.userSysId });
         }
         if (args.assignment_group) {
-          queryParts.push(`assignment_groupLIKE${sanitizeValue(args.assignment_group)}`);
+          filters.push({ field: "assignment_group", operator: "LIKE", value: args.assignment_group });
         }
 
-        queryParts.push("ORDERBYDESCsys_updated_on");
+        const sysparm_query = buildEncodedQuery(filters, { field: "sys_updated_on", direction: "DESC" });
 
         const { data, headers } = await ctx.snClient.get<
           ServiceNowListResponse<ChangeRequest>
         >("/api/now/table/change_request", {
           params: {
-            sysparm_query: queryParts.join("^"),
+            sysparm_query,
             sysparm_limit: args.limit,
             sysparm_offset: args.offset,
             sysparm_fields:
@@ -208,9 +212,28 @@ export function registerChangeRequestTools(
         };
       }
 
-      const { data } = await ctx.snClient.get<
-        ServiceNowSingleResponse<ChangeRequest> | ServiceNowListResponse<ChangeRequest>
-      >(path, { params });
+      let data: ServiceNowSingleResponse<ChangeRequest> | ServiceNowListResponse<ChangeRequest>;
+      try {
+        ({ data } = await ctx.snClient.get<
+          ServiceNowSingleResponse<ChangeRequest> | ServiceNowListResponse<ChangeRequest>
+        >(path, { params }));
+      } catch (err) {
+        if (
+          typeof err === "object" &&
+          err !== null &&
+          "statusCode" in err &&
+          (err as ServiceNowApiError).statusCode === 404
+        ) {
+          return {
+            success: false,
+            error: {
+              code: "NOT_FOUND",
+              message: `No change request found with identifier: ${args.identifier}`,
+            },
+          };
+        }
+        throw err;
+      }
 
       const result = "result" in data
         ? Array.isArray(data.result)

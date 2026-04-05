@@ -69,6 +69,35 @@ describe("queryBuilder", () => {
 
       expect(() => buildEncodedQuery(filters)).toThrow("Invalid field name");
     });
+
+    it("should append ORDERBYDESC when orderBy is provided", () => {
+      const filters: QueryFilter[] = [
+        { field: "state", operator: "=", value: "1" },
+      ];
+
+      expect(buildEncodedQuery(filters, { field: "sys_updated_on", direction: "DESC" }))
+        .toBe("state=1^ORDERBYDESCsys_updated_on");
+    });
+
+    it("should append ORDERBYASC when orderBy direction is ASC", () => {
+      const filters: QueryFilter[] = [];
+
+      expect(buildEncodedQuery(filters, { field: "number", direction: "ASC" }))
+        .toBe("ORDERBYnumber");
+    });
+
+    it("should return only ORDERBY clause when filters are empty", () => {
+      expect(buildEncodedQuery([], { field: "sys_created_on", direction: "DESC" }))
+        .toBe("ORDERBYDESCsys_created_on");
+    });
+
+    it("should work without orderBy (backwards compatible)", () => {
+      const filters: QueryFilter[] = [
+        { field: "active", operator: "=", value: "true" },
+      ];
+
+      expect(buildEncodedQuery(filters)).toBe("active=true");
+    });
   });
 
   describe("sanitizeValue", () => {
