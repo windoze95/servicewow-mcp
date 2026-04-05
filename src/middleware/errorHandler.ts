@@ -64,8 +64,7 @@ export function mapServiceNowError(
       }
       return createToolError(
         "UNEXPECTED_ERROR",
-        "An unexpected error occurred.",
-        responseBody
+        "An unexpected error occurred."
       );
   }
 }
