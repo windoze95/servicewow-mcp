@@ -1,4 +1,4 @@
-import express, { type Request, type Response } from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { randomUUID } from "node:crypto";
@@ -168,6 +168,19 @@ export async function createApp(
     logger.info({ sessionId }, "MCP session terminated by client");
     res.status(200).json({ message: "Session closed" });
   });
+
+  // Global error handler — returns JSON, hides stack traces in production
+  app.use(
+    (err: Error, _req: Request, res: Response, _next: NextFunction) => {
+      const isDev = process.env.NODE_ENV !== "production";
+      logger.error({ err }, "Unhandled error");
+
+      res.status(500).json({
+        error: "Internal Server Error",
+        ...(isDev && { message: err.message, stack: err.stack }),
+      });
+    }
+  );
 
   return app;
 }
