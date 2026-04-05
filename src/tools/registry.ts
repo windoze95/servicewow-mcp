@@ -96,7 +96,8 @@ export function registerAllTools(
           { userName: ctx.userName, duration },
           "Tool call completed"
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        const isError = result != null && typeof result === "object" && "success" in result && result.success === false;
+        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }], ...(isError ? { isError: true } : {}) };
       } catch (err: unknown) {
         const toolErr = (err as { toolError?: unknown })?.toolError;
         if (toolErr) {
