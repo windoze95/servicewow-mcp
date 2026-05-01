@@ -6,6 +6,7 @@ import {
   validateIOVariable,
   validateState,
   sanitizeUpdatePayload,
+  normalizeDateBoundary,
   READONLY_FIELDS,
 } from "../../../src/utils/validators.js";
 
@@ -129,6 +130,69 @@ describe("validators", () => {
 
       const sanitized = sanitizeUpdatePayload(payload);
       expect(sanitized).toEqual(payload);
+    });
+  });
+
+  describe("normalizeDateBoundary", () => {
+    it("expands date-only inputs to start- or end-of-day", () => {
+      expect(normalizeDateBoundary("2026-04-01", "from")).toBe("2026-04-01 00:00:00");
+      expect(normalizeDateBoundary("2026-04-30", "to")).toBe("2026-04-30 23:59:59");
+    });
+
+    it("returns space-separated datetimes unchanged", () => {
+      expect(normalizeDateBoundary("2026-04-01 08:30:00", "from")).toBe(
+        "2026-04-01 08:30:00"
+      );
+    });
+
+    it("normalizes ISO 8601 inputs to YYYY-MM-DD HH:MM:SS in UTC", () => {
+      expect(normalizeDateBoundary("2026-04-01T08:30:00Z", "from")).toBe(
+        "2026-04-01 08:30:00"
+      );
+      // +05:00 offset → UTC is 5 hours earlier
+      expect(normalizeDateBoundary("2026-04-01T08:30:00+05:00", "from")).toBe(
+        "2026-04-01 03:30:00"
+      );
+      // Compact offset form ±HHMM
+      expect(normalizeDateBoundary("2026-04-01T08:30:00-0400", "from")).toBe(
+        "2026-04-01 12:30:00"
+      );
+    });
+
+    it("accepts a real leap-year date (2024-02-29)", () => {
+      expect(normalizeDateBoundary("2024-02-29", "from")).toBe(
+        "2024-02-29 00:00:00"
+      );
+    });
+
+    it("rejects malformed inputs", () => {
+      expect(normalizeDateBoundary("", "from")).toBeNull();
+      expect(normalizeDateBoundary("not-a-date", "from")).toBeNull();
+      expect(normalizeDateBoundary("2026/04/01", "from")).toBeNull();
+      expect(normalizeDateBoundary("2026-13-01", "from")).toBeNull(); // bad month
+      expect(normalizeDateBoundary("2026-04-32", "from")).toBeNull(); // bad day
+      expect(normalizeDateBoundary("2026-04-01 25:00:00", "from")).toBeNull(); // bad hour
+    });
+
+    it("rejects calendar-overflow dates that Date silently normalizes", () => {
+      // April has 30 days; new Date('2026-04-31...') would roll to May 1.
+      expect(normalizeDateBoundary("2026-04-31", "from")).toBeNull();
+      expect(normalizeDateBoundary("2026-04-31 00:00:00", "from")).toBeNull();
+      expect(normalizeDateBoundary("2026-04-31T00:00:00Z", "from")).toBeNull();
+      // Feb 30 never exists.
+      expect(normalizeDateBoundary("2026-02-30", "from")).toBeNull();
+      // 2025 is not a leap year.
+      expect(normalizeDateBoundary("2025-02-29", "from")).toBeNull();
+      // Overflow in an offset-bearing ISO must be rejected before the offset
+      // shift is applied.
+      expect(normalizeDateBoundary("2026-04-31T08:30:00+05:00", "from")).toBeNull();
+    });
+
+    it("rejects ISO 8601 inputs without a timezone", () => {
+      // A bare local-time ISO would be parsed in the host's timezone, making
+      // results environment-dependent.
+      expect(normalizeDateBoundary("2026-04-01T08:30:00", "from")).toBeNull();
+      expect(normalizeDateBoundary("2026-04-01T08:30:00.123", "from")).toBeNull();
     });
   });
 });

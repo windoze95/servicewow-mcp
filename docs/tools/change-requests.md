@@ -14,12 +14,24 @@ Search for change requests with various filters. Returns a paginated summary lis
 | `state` | string | No | Filter by state (e.g., `New`, `Assess`, `Implement`, `Review`, `Closed`) |
 | `type` | string | No | Filter by type (`Normal`, `Standard`, `Emergency`) |
 | `priority` | string | No | Filter by priority (`1`-`5`) |
+| `risk` | string | No | Filter by risk level (e.g., `High`, `Moderate`, `Low` or numeric) |
+| `category` | string | No | Filter by category (e.g., `Hardware`, `Software`, `Network`) |
+| `cmdb_ci` | string | No | Filter by configuration item (matches CI name or sys_id) |
 | `assigned_to_me` | boolean | No | Only show change requests assigned to the authenticated user |
 | `assignment_group` | string | No | Filter by assignment group name |
+| `start_date_from` | string | No | Planned start date lower bound (`YYYY-MM-DD` or ISO 8601, inclusive) |
+| `start_date_to` | string | No | Planned start date upper bound (date-only is treated as end-of-day UTC) |
+| `end_date_from` | string | No | Planned end date lower bound |
+| `end_date_to` | string | No | Planned end date upper bound (date-only is treated as end-of-day UTC) |
+| `opened_at_from` | string | No | Opened-at lower bound |
+| `opened_at_to` | string | No | Opened-at upper bound (date-only is treated as end-of-day UTC) |
+| `order_by` | enum | No | One of `sys_updated_on_desc` (default), `sys_updated_on_asc`, `start_date_desc`, `start_date_asc`, `end_date_desc`, `end_date_asc`, `opened_at_desc`, `opened_at_asc`, `priority_asc`, `priority_desc` |
 | `limit` | number | No | Maximum results (1-100, default 10) |
 | `offset` | number | No | Result offset for pagination (default 0) |
 
-**Returns**: Array of change request summaries with `sys_id`, `number`, `short_description`, `state`, `type`, `priority`, `risk`, `assigned_to`, `assignment_group`, `requested_by`, `category`, `start_date`, `end_date`, `sys_updated_on`, and `self_link`.
+**Date inputs**: Accept `YYYY-MM-DD` (date only) or ISO 8601 with an explicit timezone (`2026-04-01T08:30:00Z` or `2026-04-01T08:30:00+05:00`). ISO 8601 inputs without a timezone are rejected so query bounds are independent of the host timezone. Date-only `_from` values pin to `00:00:00` and `_to` values pin to `23:59:59` so the upper-bound day is fully inclusive. ISO 8601 with an offset is normalized to UTC. Malformed or calendar-overflow input (`2026-04-31`, `2025-02-29`) returns `VALIDATION_ERROR`.
+
+**Returns**: Array of change request summaries with `sys_id`, `number`, `short_description`, `state`, `type`, `priority`, `risk`, `assigned_to`, `assignment_group`, `requested_by`, `category`, `cmdb_ci`, `start_date`, `end_date`, `opened_at`, `sys_updated_on`, and `self_link`.
 
 ## `get_change_request`
 

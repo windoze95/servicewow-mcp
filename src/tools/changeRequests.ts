@@ -12,9 +12,25 @@ import {
   validateSysId,
   validateChangeNumber,
   sanitizeUpdatePayload,
+  normalizeDateBoundary,
 } from "../utils/validators.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 import { paginateAll } from "../servicenow/paginator.js";
+
+const ORDER_BY_MAP: Record<string, string> = {
+  sys_updated_on_desc: "ORDERBYDESCsys_updated_on",
+  sys_updated_on_asc: "ORDERBYsys_updated_on",
+  start_date_desc: "ORDERBYDESCstart_date",
+  start_date_asc: "ORDERBYstart_date",
+  end_date_desc: "ORDERBYDESCend_date",
+  end_date_asc: "ORDERBYend_date",
+  opened_at_desc: "ORDERBYDESCopened_at",
+  opened_at_asc: "ORDERBYopened_at",
+  priority_asc: "ORDERBYpriority",
+  priority_desc: "ORDERBYDESCpriority",
+};
+
+const ORDER_BY_KEYS = Object.keys(ORDER_BY_MAP) as [string, ...string[]];
 
 type WrapHandler = <T>(
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
@@ -93,6 +109,18 @@ export function registerChangeRequestTools(
         .string()
         .optional()
         .describe("Filter by priority (1-5)"),
+      risk: z
+        .string()
+        .optional()
+        .describe("Filter by risk level (e.g. 'High', 'Moderate', 'Low' or numeric)"),
+      category: z
+        .string()
+        .optional()
+        .describe("Filter by category (e.g. 'Hardware', 'Software', 'Network')"),
+      cmdb_ci: z
+        .string()
+        .optional()
+        .describe("Filter by configuration item (matches CI name or sys_id)"),
       assigned_to_me: z
         .boolean()
         .optional()
@@ -102,6 +130,35 @@ export function registerChangeRequestTools(
         .string()
         .optional()
         .describe("Filter by assignment group name"),
+      start_date_from: z
+        .string()
+        .optional()
+        .describe("Planned start date lower bound (YYYY-MM-DD or ISO 8601, inclusive)"),
+      start_date_to: z
+        .string()
+        .optional()
+        .describe("Planned start date upper bound (YYYY-MM-DD or ISO 8601, inclusive; date-only treated as end-of-day UTC)"),
+      end_date_from: z
+        .string()
+        .optional()
+        .describe("Planned end date lower bound (YYYY-MM-DD or ISO 8601, inclusive)"),
+      end_date_to: z
+        .string()
+        .optional()
+        .describe("Planned end date upper bound (YYYY-MM-DD or ISO 8601, inclusive; date-only treated as end-of-day UTC)"),
+      opened_at_from: z
+        .string()
+        .optional()
+        .describe("Opened-at lower bound (YYYY-MM-DD or ISO 8601, inclusive)"),
+      opened_at_to: z
+        .string()
+        .optional()
+        .describe("Opened-at upper bound (YYYY-MM-DD or ISO 8601, inclusive; date-only treated as end-of-day UTC)"),
+      order_by: z
+        .enum(ORDER_BY_KEYS)
+        .optional()
+        .default("sys_updated_on_desc")
+        .describe("Sort order. Defaults to most-recently-updated first."),
       limit: z
         .number()
         .int()
@@ -119,8 +176,18 @@ export function registerChangeRequestTools(
           state?: string;
           type?: string;
           priority?: string;
+          risk?: string;
+          category?: string;
+          cmdb_ci?: string;
           assigned_to_me?: boolean;
           assignment_group?: string;
+          start_date_from?: string;
+          start_date_to?: string;
+          end_date_from?: string;
+          end_date_to?: string;
+          opened_at_from?: string;
+          opened_at_to?: string;
+          order_by: string;
           limit: number;
           offset: number;
         }
@@ -139,6 +206,15 @@ export function registerChangeRequestTools(
         if (args.priority) {
           queryParts.push(`priority=${sanitizeValue(args.priority)}`);
         }
+        if (args.risk) {
+          queryParts.push(`risk=${sanitizeValue(args.risk)}`);
+        }
+        if (args.category) {
+          queryParts.push(`category=${sanitizeValue(args.category)}`);
+        }
+        if (args.cmdb_ci) {
+          queryParts.push(`cmdb_ciLIKE${sanitizeValue(args.cmdb_ci)}`);
+        }
         if (args.assigned_to_me) {
           queryParts.push(`assigned_to=${ctx.userSysId}`);
         }
@@ -146,7 +222,32 @@ export function registerChangeRequestTools(
           queryParts.push(`assignment_groupLIKE${sanitizeValue(args.assignment_group)}`);
         }
 
-        queryParts.push("ORDERBYDESCsys_updated_on");
+        const dateFilters: Array<[string, string | undefined, "from" | "to", string]> = [
+          ["start_date", args.start_date_from, "from", ">="],
+          ["start_date", args.start_date_to, "to", "<="],
+          ["end_date", args.end_date_from, "from", ">="],
+          ["end_date", args.end_date_to, "to", "<="],
+          ["opened_at", args.opened_at_from, "from", ">="],
+          ["opened_at", args.opened_at_to, "to", "<="],
+        ];
+        for (const [field, raw, boundary, op] of dateFilters) {
+          if (!raw) continue;
+          const normalized = normalizeDateBoundary(raw, boundary);
+          if (!normalized) {
+            return {
+              success: false,
+              error: {
+                code: "VALIDATION_ERROR",
+                message: `Invalid date for ${field}_${boundary}: ${raw}. Use YYYY-MM-DD or ISO 8601.`,
+              },
+            };
+          }
+          queryParts.push(`${field}${op}${sanitizeValue(normalized)}`);
+        }
+
+        queryParts.push(
+          ORDER_BY_MAP[args.order_by] ?? ORDER_BY_MAP.sys_updated_on_desc
+        );
 
         const { data, headers } = await ctx.snClient.get<
           ServiceNowListResponse<ChangeRequest>
@@ -156,7 +257,7 @@ export function registerChangeRequestTools(
             sysparm_limit: args.limit,
             sysparm_offset: args.offset,
             sysparm_fields:
-              "sys_id,number,short_description,state,type,priority,impact,urgency,risk,assigned_to,assignment_group,requested_by,category,start_date,end_date,sys_updated_on",
+              "sys_id,number,short_description,state,type,priority,impact,urgency,risk,assigned_to,assignment_group,requested_by,category,cmdb_ci,start_date,end_date,opened_at,sys_updated_on",
           },
         });
 
