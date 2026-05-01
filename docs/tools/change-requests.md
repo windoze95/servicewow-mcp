@@ -29,7 +29,7 @@ Search for change requests with various filters. Returns a paginated summary lis
 | `limit` | number | No | Maximum results (1-100, default 10) |
 | `offset` | number | No | Result offset for pagination (default 0) |
 
-**Date inputs**: Accept `YYYY-MM-DD` (date only) or ISO 8601 (`2026-04-01T08:30:00Z`). Date-only `_from` values pin to `00:00:00` and `_to` values pin to `23:59:59` so the upper-bound day is fully inclusive. ISO 8601 with an offset is normalized to UTC. Malformed input returns `VALIDATION_ERROR`.
+**Date inputs**: Accept `YYYY-MM-DD` (date only) or ISO 8601 with an explicit timezone (`2026-04-01T08:30:00Z` or `2026-04-01T08:30:00+05:00`). ISO 8601 inputs without a timezone are rejected so query bounds are independent of the host timezone. Date-only `_from` values pin to `00:00:00` and `_to` values pin to `23:59:59` so the upper-bound day is fully inclusive. ISO 8601 with an offset is normalized to UTC. Malformed or calendar-overflow input (`2026-04-31`, `2025-02-29`) returns `VALIDATION_ERROR`.
 
 **Returns**: Array of change request summaries with `sys_id`, `number`, `short_description`, `state`, `type`, `priority`, `risk`, `assigned_to`, `assignment_group`, `requested_by`, `category`, `cmdb_ci`, `start_date`, `end_date`, `opened_at`, `sys_updated_on`, and `self_link`.
 
