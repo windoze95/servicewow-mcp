@@ -6,6 +6,7 @@ import {
   validateIOVariable,
   validateState,
   sanitizeUpdatePayload,
+  normalizeDateBoundary,
   READONLY_FIELDS,
 } from "../../../src/utils/validators.js";
 
@@ -129,6 +130,38 @@ describe("validators", () => {
 
       const sanitized = sanitizeUpdatePayload(payload);
       expect(sanitized).toEqual(payload);
+    });
+  });
+
+  describe("normalizeDateBoundary", () => {
+    it("expands date-only inputs to start- or end-of-day", () => {
+      expect(normalizeDateBoundary("2026-04-01", "from")).toBe("2026-04-01 00:00:00");
+      expect(normalizeDateBoundary("2026-04-30", "to")).toBe("2026-04-30 23:59:59");
+    });
+
+    it("returns space-separated datetimes unchanged", () => {
+      expect(normalizeDateBoundary("2026-04-01 08:30:00", "from")).toBe(
+        "2026-04-01 08:30:00"
+      );
+    });
+
+    it("normalizes ISO 8601 inputs to YYYY-MM-DD HH:MM:SS in UTC", () => {
+      expect(normalizeDateBoundary("2026-04-01T08:30:00Z", "from")).toBe(
+        "2026-04-01 08:30:00"
+      );
+      // +05:00 offset → UTC is 5 hours earlier
+      expect(normalizeDateBoundary("2026-04-01T08:30:00+05:00", "from")).toBe(
+        "2026-04-01 03:30:00"
+      );
+    });
+
+    it("rejects malformed inputs", () => {
+      expect(normalizeDateBoundary("", "from")).toBeNull();
+      expect(normalizeDateBoundary("not-a-date", "from")).toBeNull();
+      expect(normalizeDateBoundary("2026/04/01", "from")).toBeNull();
+      expect(normalizeDateBoundary("2026-13-01", "from")).toBeNull(); // bad month
+      expect(normalizeDateBoundary("2026-04-32", "from")).toBeNull(); // bad day
+      expect(normalizeDateBoundary("2026-04-01 25:00:00", "from")).toBeNull(); // bad hour
     });
   });
 });

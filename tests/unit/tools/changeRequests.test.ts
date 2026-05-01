@@ -78,7 +78,7 @@ describe("registerChangeRequestTools", () => {
         sysparm_limit: 10,
         sysparm_offset: 0,
         sysparm_fields:
-          "sys_id,number,short_description,state,type,priority,impact,urgency,risk,assigned_to,assignment_group,requested_by,category,start_date,end_date,sys_updated_on",
+          "sys_id,number,short_description,state,type,priority,impact,urgency,risk,assigned_to,assignment_group,requested_by,category,cmdb_ci,start_date,end_date,opened_at,sys_updated_on",
       },
     });
     expect(result.success).toBe(true);
@@ -105,8 +105,12 @@ describe("registerChangeRequestTools", () => {
       state: "Implement",
       type: "Emergency",
       priority: "1",
+      risk: "High",
+      category: "Hardware",
+      cmdb_ci: "core-router",
       assigned_to_me: true,
       assignment_group: "CAB",
+      order_by: "sys_updated_on_desc",
       limit: 5,
       offset: 10,
     });
@@ -117,8 +121,76 @@ describe("registerChangeRequestTools", () => {
     expect(query).toContain("state=Implement");
     expect(query).toContain("type=Emergency");
     expect(query).toContain("priority=1");
+    expect(query).toContain("risk=High");
+    expect(query).toContain("category=Hardware");
+    expect(query).toContain("cmdb_ciLIKEcore-router");
     expect(query).toContain(`assigned_to=${userSysId}`);
     expect(query).toContain("assignment_groupLIKECAB");
+  });
+
+  it("search_change_requests filters by planned start date range (date-only inputs)", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_change_requests({
+      start_date_from: "2026-04-01",
+      start_date_to: "2026-04-30",
+      order_by: "start_date_asc",
+      limit: 10,
+      offset: 0,
+    });
+
+    const query = snClient.get.mock.calls[0][1].params.sysparm_query;
+    expect(query).toContain("start_date>=2026-04-01 00:00:00");
+    expect(query).toContain("start_date<=2026-04-30 23:59:59");
+    expect(query).toContain("ORDERBYstart_date");
+    expect(query).not.toContain("ORDERBYDESCstart_date");
+  });
+
+  it("search_change_requests accepts ISO 8601 datetimes for date filters", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_change_requests({
+      end_date_from: "2026-04-01T08:30:00Z",
+      end_date_to: "2026-04-01T17:00:00Z",
+      opened_at_from: "2026-01-15",
+      opened_at_to: "2026-03-31",
+      order_by: "end_date_desc",
+      limit: 10,
+      offset: 0,
+    });
+
+    const query = snClient.get.mock.calls[0][1].params.sysparm_query;
+    expect(query).toContain("end_date>=2026-04-01 08:30:00");
+    expect(query).toContain("end_date<=2026-04-01 17:00:00");
+    expect(query).toContain("opened_at>=2026-01-15 00:00:00");
+    expect(query).toContain("opened_at<=2026-03-31 23:59:59");
+    expect(query).toContain("ORDERBYDESCend_date");
+  });
+
+  it("search_change_requests returns VALIDATION_ERROR for malformed date input", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.search_change_requests({
+      start_date_from: "not-a-date",
+      order_by: "sys_updated_on_desc",
+      limit: 10,
+      offset: 0,
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("start_date_from");
+    expect(snClient.get).not.toHaveBeenCalled();
   });
 
   it("search_change_requests escapes encoded query injection characters", async () => {
