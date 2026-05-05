@@ -87,7 +87,7 @@ describe("registerScheduledJobTools", () => {
       expect.objectContaining({
         params: expect.objectContaining({
           sysparm_query:
-            "nameLIKEMonthly^scriptLIKEOpen Site Openings^active=true^ORDERBYDESCsys_updated_on",
+            "nameLIKEMonthly^scriptLIKEOpen Site Openings^active=true^sys_class_name=sysauto_script^ORDERBYDESCsys_updated_on",
           sysparm_limit: 20,
           sysparm_offset: 0,
         }),
@@ -177,6 +177,21 @@ describe("registerScheduledJobTools", () => {
       offset: 0,
     })) as { success: boolean; error: { code: string } };
 
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("search_scheduled_jobs rejects script_contains combined with non-script sys_class_name", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.search_scheduled_jobs({
+      script_contains: "anything",
+      sys_class_name: "sysauto_template",
+      limit: 20,
+      offset: 0,
+    })) as { success: boolean; error: { code: string } };
+
+    expect(snClient.get).not.toHaveBeenCalled();
     expect(result.success).toBe(false);
     expect(result.error.code).toBe("VALIDATION_ERROR");
   });

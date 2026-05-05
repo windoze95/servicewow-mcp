@@ -19,7 +19,7 @@ Search the parent `sysauto` table (covers all subclasses). Returns a paginated s
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | No | Job name LIKE filter |
-| `script_contains` | string | No | Match `sysauto_script` jobs whose script body contains this substring (LIKE). Only applies to Scheduled Script Executions. |
+| `script_contains` | string | No | Match Scheduled Script Executions whose script body contains this substring (LIKE). Automatically scopes the search to `sys_class_name=sysauto_script` because the `script` column only exists on that subclass; passing a different `sys_class_name` together with `script_contains` is rejected. |
 | `run_as` | string | No | Run-as user `sys_id` (32 hex chars) |
 | `active` | boolean | No | Filter by active flag |
 | `run_type` | string | No | e.g. `periodically`, `monthly`, `weekly`, `daily`, `on_demand` |

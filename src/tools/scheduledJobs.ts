@@ -68,7 +68,7 @@ export function registerScheduledJobTools(
         .string()
         .optional()
         .describe(
-          "Filter to sysauto_script jobs whose script body CONTAINS this substring (only matches Scheduled Script Executions)"
+          "Filter to Scheduled Script Executions whose script body CONTAINS this substring. Automatically scopes the search to sys_class_name='sysauto_script' since the script field only exists on that subclass."
         ),
       run_as: z
         .string()
@@ -120,6 +120,28 @@ export function registerScheduledJobTools(
       ) => {
         const queryParts: string[] = [];
 
+        // `script` only exists on the sysauto_script child table, so when the
+        // caller asks for a script substring filter we must constrain the
+        // query to that subclass — otherwise the Table API ignores the
+        // unknown column on the parent and returns unrelated jobs.
+        let effectiveSysClassName = args.sys_class_name;
+        if (args.script_contains) {
+          if (
+            effectiveSysClassName &&
+            effectiveSysClassName !== "sysauto_script"
+          ) {
+            return {
+              success: false,
+              error: {
+                code: "VALIDATION_ERROR",
+                message:
+                  "script_contains can only be used with sys_class_name='sysauto_script' (the script field does not exist on other subclasses)",
+              },
+            };
+          }
+          effectiveSysClassName = "sysauto_script";
+        }
+
         if (args.name) {
           queryParts.push(`nameLIKE${sanitizeValue(args.name)}`);
         }
@@ -146,9 +168,9 @@ export function registerScheduledJobTools(
         if (args.run_type) {
           queryParts.push(`run_type=${sanitizeValue(args.run_type)}`);
         }
-        if (args.sys_class_name) {
+        if (effectiveSysClassName) {
           queryParts.push(
-            `sys_class_name=${sanitizeValue(args.sys_class_name)}`
+            `sys_class_name=${sanitizeValue(effectiveSysClassName)}`
           );
         }
 
