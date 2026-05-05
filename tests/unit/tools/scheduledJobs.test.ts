@@ -63,6 +63,7 @@ describe("registerScheduledJobTools", () => {
             name: "Monthly Site Openings",
             active: "true",
             run_type: "monthly",
+            sys_class_name: "sysauto_script",
           },
         ],
       },
@@ -82,11 +83,11 @@ describe("registerScheduledJobTools", () => {
     };
 
     expect(snClient.get).toHaveBeenCalledWith(
-      "/api/now/table/sysauto_script",
+      "/api/now/table/sysauto",
       expect.objectContaining({
         params: expect.objectContaining({
           sysparm_query:
-            "nameLIKEMonthly^scriptLIKEOpen Site Openings^active=true^ORDERBYDESCsys_updated_on",
+            "nameLIKEMonthly^scriptLIKEOpen Site Openings^active=true^sys_class_name=sysauto_script^ORDERBYDESCsys_updated_on",
           sysparm_limit: 20,
           sysparm_offset: 0,
         }),
@@ -119,12 +120,51 @@ describe("registerScheduledJobTools", () => {
     });
 
     expect(snClient.get).toHaveBeenCalledWith(
-      "/api/now/table/sysauto_script",
+      "/api/now/table/sysauto",
       expect.objectContaining({
         params: expect.objectContaining({
           sysparm_query: `run_as=${runAs}^ORDERBYDESCsys_updated_on`,
         }),
       })
+    );
+  });
+
+  it("search_scheduled_jobs filters by sys_class_name and uses class for self_link", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: {
+        result: [
+          {
+            sys_id: "tmpl-sys-id-001",
+            name: "Monthly Review Reminder: Open Site Openings",
+            sys_class_name: "sysauto_template",
+          },
+        ],
+      },
+      headers: { "x-total-count": "1" },
+    });
+
+    const result = (await handlers.search_scheduled_jobs({
+      sys_class_name: "sysauto_template",
+      limit: 20,
+      offset: 0,
+    })) as {
+      success: boolean;
+      data: { sys_id: string; self_link: string }[];
+    };
+
+    expect(snClient.get).toHaveBeenCalledWith(
+      "/api/now/table/sysauto",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          sysparm_query:
+            "sys_class_name=sysauto_template^ORDERBYDESCsys_updated_on",
+        }),
+      })
+    );
+    expect(result.data[0].self_link).toBe(
+      "https://example.service-now.com/sysauto_template.do?sys_id=tmpl-sys-id-001"
     );
   });
 
@@ -141,6 +181,21 @@ describe("registerScheduledJobTools", () => {
     expect(result.error.code).toBe("VALIDATION_ERROR");
   });
 
+  it("search_scheduled_jobs rejects script_contains combined with non-script sys_class_name", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.search_scheduled_jobs({
+      script_contains: "anything",
+      sys_class_name: "sysauto_template",
+      limit: 20,
+      offset: 0,
+    })) as { success: boolean; error: { code: string } };
+
+    expect(snClient.get).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+  });
+
   it("get_scheduled_job fetches by sys_id and returns self_link", async () => {
     const { handlers, snClient } = setup();
     const jobSysId = "0123456789abcdef0123456789abcdef";
@@ -151,6 +206,7 @@ describe("registerScheduledJobTools", () => {
           sys_id: jobSysId,
           name: "PDI Monthly Reminder",
           script: "// create incident",
+          sys_class_name: "sysauto_script",
         },
       },
       headers: {},
@@ -161,16 +217,38 @@ describe("registerScheduledJobTools", () => {
     })) as { success: boolean; data: { self_link: string } };
 
     expect(snClient.get).toHaveBeenCalledWith(
-      `/api/now/table/sysauto_script/${jobSysId}`,
-      expect.objectContaining({
-        params: expect.objectContaining({
-          sysparm_fields: expect.stringContaining("script"),
-        }),
-      })
+      `/api/now/table/sysauto/${jobSysId}`
     );
     expect(result.success).toBe(true);
     expect(result.data.self_link).toBe(
       `https://example.service-now.com/sysauto_script.do?sys_id=${jobSysId}`
+    );
+  });
+
+  it("get_scheduled_job builds self_link from sys_class_name for record generators", async () => {
+    const { handlers, snClient } = setup();
+    const jobSysId = "5fef879647f4b6d4718d8a12736d43fd";
+
+    snClient.get.mockResolvedValue({
+      data: {
+        result: {
+          sys_id: jobSysId,
+          name: "Monthly Review Reminder: Open Site Openings",
+          sys_class_name: "sysauto_template",
+        },
+      },
+      headers: {},
+    });
+
+    const result = (await handlers.get_scheduled_job({
+      sys_id: jobSysId,
+    })) as { success: boolean; data: { self_link: string } };
+
+    expect(snClient.get).toHaveBeenCalledWith(
+      `/api/now/table/sysauto/${jobSysId}`
+    );
+    expect(result.data.self_link).toBe(
+      `https://example.service-now.com/sysauto_template.do?sys_id=${jobSysId}`
     );
   });
 
