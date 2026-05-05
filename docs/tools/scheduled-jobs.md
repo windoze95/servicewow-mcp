@@ -2,19 +2,28 @@
 
 # Scheduled Jobs Tools (2)
 
-Read-only tools for inspecting Scheduled Script Executions (`sysauto_script`) — useful for tracing background automations such as monthly incident generators.
+Read-only tools for inspecting Scheduled Jobs — the parent `sysauto` table and every subclass that appears in the **System Definition → Scheduled Jobs** list:
+
+- `sysauto_script` — Scheduled Script Executions
+- `sysauto_template` — Scheduled Record Generators (e.g. monthly incident creators driven by a `sys_template`)
+- `sysauto_report` — Scheduled report deliveries
+- `sysauto_import` — Scheduled data imports
+- ...and any other subclass of `sysauto`
+
+`self_link` is built from the record's `sys_class_name`, so each link opens the correct subclass form.
 
 ## `search_scheduled_jobs`
 
-Search Scheduled Script Executions with filters. Returns a paginated summary list (script body excluded).
+Search the parent `sysauto` table (covers all subclasses). Returns a paginated summary list.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | No | Job name LIKE filter |
-| `script_contains` | string | No | Match jobs whose script body contains this substring (LIKE) |
+| `script_contains` | string | No | Match `sysauto_script` jobs whose script body contains this substring (LIKE). Only applies to Scheduled Script Executions. |
 | `run_as` | string | No | Run-as user `sys_id` (32 hex chars) |
 | `active` | boolean | No | Filter by active flag |
 | `run_type` | string | No | e.g. `periodically`, `monthly`, `weekly`, `daily`, `on_demand` |
+| `sys_class_name` | string | No | Restrict to a subclass, e.g. `sysauto_script`, `sysauto_template`, `sysauto_report`, `sysauto_import` |
 | `limit` | number | No | 1-100, default 20 |
 | `offset` | number | No | Pagination offset, default 0 |
 
@@ -22,13 +31,13 @@ Search Scheduled Script Executions with filters. Returns a paginated summary lis
 
 ## `get_scheduled_job`
 
-Get full details of a Scheduled Script Execution by `sys_id`, including the `script` body and `condition`.
+Get full details of any Scheduled Job by `sys_id`. The record is fetched via the `sysauto` parent table without a `sysparm_fields` restriction, so all columns defined on the record's actual subclass are returned (e.g. `script`/`condition` for `sysauto_script`, `template`/`table` for `sysauto_template`).
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `sys_id` | string | Yes | Scheduled job `sys_id` (32 hex chars) |
 
-**Returns**: The full job record plus `self_link`.
+**Returns**: The full job record plus `self_link` (built from `sys_class_name`).
 
 ---
 

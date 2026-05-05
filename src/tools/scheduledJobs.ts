@@ -16,6 +16,12 @@ type WrapHandler = <T>(
   isError?: boolean;
 }>;
 
+// Parent `sysauto` table backs the "Scheduled Jobs" list and is extended by
+// every subclass: sysauto_script, sysauto_template (record generators),
+// sysauto_report, sysauto_import, etc. Querying the parent surfaces all of
+// them in one call.
+const PARENT_TABLE = "sysauto";
+
 const SUMMARY_FIELDS = [
   "sys_id",
   "name",
@@ -32,20 +38,17 @@ const SUMMARY_FIELDS = [
   "sys_updated_on",
 ].join(",");
 
-const DETAIL_FIELDS = [
-  SUMMARY_FIELDS,
-  "script",
-  "condition",
-  "description",
-  "sys_created_on",
-  "sys_created_by",
-  "sys_updated_by",
-].join(",");
-
 interface ScheduledJobRecord {
   sys_id: string;
   name?: string;
+  sys_class_name?: string;
   [key: string]: unknown;
+}
+
+function resolveTable(record: { sys_class_name?: string }): string {
+  return record.sys_class_name && record.sys_class_name.length > 0
+    ? record.sys_class_name
+    : PARENT_TABLE;
 }
 
 export function registerScheduledJobTools(
@@ -55,7 +58,7 @@ export function registerScheduledJobTools(
   // search_scheduled_jobs
   server.tool(
     "search_scheduled_jobs",
-    "Search Scheduled Script Executions (sysauto_script). Useful for finding background jobs that create or update records on a schedule (e.g. monthly incident generators). Returns a paginated summary list.",
+    "Search Scheduled Jobs (sysauto and all subclasses: sysauto_script, sysauto_template, sysauto_report, sysauto_import, etc.). Useful for finding background automations that create or update records on a schedule (e.g. monthly incident generators built as Scheduled Record Generators or Scheduled Script Executions). Returns a paginated summary list.",
     {
       name: z
         .string()
@@ -65,7 +68,7 @@ export function registerScheduledJobTools(
         .string()
         .optional()
         .describe(
-          "Filter to jobs whose script body CONTAINS this substring (e.g. a table name, group name, or short description)"
+          "Filter to sysauto_script jobs whose script body CONTAINS this substring (only matches Scheduled Script Executions)"
         ),
       run_as: z
         .string()
@@ -80,6 +83,12 @@ export function registerScheduledJobTools(
         .optional()
         .describe(
           "Filter by run_type (e.g. 'periodically', 'monthly', 'weekly', 'daily', 'on_demand')"
+        ),
+      sys_class_name: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by subclass table (e.g. 'sysauto_script', 'sysauto_template', 'sysauto_report', 'sysauto_import')"
         ),
       limit: z
         .number()
@@ -104,6 +113,7 @@ export function registerScheduledJobTools(
           run_as?: string;
           active?: boolean;
           run_type?: string;
+          sys_class_name?: string;
           limit: number;
           offset: number;
         }
@@ -136,12 +146,17 @@ export function registerScheduledJobTools(
         if (args.run_type) {
           queryParts.push(`run_type=${sanitizeValue(args.run_type)}`);
         }
+        if (args.sys_class_name) {
+          queryParts.push(
+            `sys_class_name=${sanitizeValue(args.sys_class_name)}`
+          );
+        }
 
         queryParts.push("ORDERBYDESCsys_updated_on");
 
         const { data, headers } = await ctx.snClient.get<
           ServiceNowListResponse<ScheduledJobRecord>
-        >("/api/now/table/sysauto_script", {
+        >(`/api/now/table/${PARENT_TABLE}`, {
           params: {
             sysparm_query: queryParts.join("^"),
             sysparm_limit: args.limit,
@@ -156,7 +171,7 @@ export function registerScheduledJobTools(
             ...r,
             self_link: buildRecordUrl(
               ctx.instanceUrl,
-              "sysauto_script",
+              resolveTable(r),
               r.sys_id
             ),
           })),
@@ -173,7 +188,7 @@ export function registerScheduledJobTools(
   // get_scheduled_job
   server.tool(
     "get_scheduled_job",
-    "Get full details of a Scheduled Script Execution (sysauto_script) by sys_id, including the script body and condition.",
+    "Get full details of a Scheduled Job (sysauto and all subclasses) by sys_id. Returns all fields for the record's class — including script/condition for sysauto_script and template/table for sysauto_template (Scheduled Record Generators).",
     {
       sys_id: z
         .string()
@@ -191,13 +206,11 @@ export function registerScheduledJobTools(
           };
         }
 
+        // Fetch from the parent table without sysparm_fields so the API
+        // returns every column defined on the record's actual subclass.
         const { data } = await ctx.snClient.get<
           ServiceNowSingleResponse<ScheduledJobRecord>
-        >(`/api/now/table/sysauto_script/${args.sys_id}`, {
-          params: {
-            sysparm_fields: DETAIL_FIELDS,
-          },
-        });
+        >(`/api/now/table/${PARENT_TABLE}/${args.sys_id}`);
 
         return {
           success: true,
@@ -205,7 +218,7 @@ export function registerScheduledJobTools(
             ...data.result,
             self_link: buildRecordUrl(
               ctx.instanceUrl,
-              "sysauto_script",
+              resolveTable(data.result),
               data.result.sys_id
             ),
           },
