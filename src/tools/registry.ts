@@ -16,6 +16,7 @@ import { registerCatalogTools } from "./catalog.js";
 import { registerUpdateSetTools } from "./updateSets.js";
 import { registerChangeRequestTools } from "./changeRequests.js";
 import { registerCatalogAdminTools } from "./catalogAdmin.js";
+import { registerScheduledJobTools } from "./scheduledJobs.js";
 import { registerCatalogPrompts } from "../prompts/catalog.js";
 import { registerIncidentPrompts } from "../prompts/incidents.js";
 import { registerChangeRequestPrompts } from "../prompts/changeRequests.js";
@@ -116,6 +117,7 @@ export function registerAllTools(
   registerUpdateSetTools(server, wrapHandler);
   registerChangeRequestTools(server, wrapHandler);
   registerCatalogAdminTools(server, wrapHandler);
+  registerScheduledJobTools(server, wrapHandler);
 
   registerCatalogPrompts(server);
   registerResources(server, getContext);
