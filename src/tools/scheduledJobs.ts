@@ -115,7 +115,7 @@ export function registerScheduledJobTools(
         }
         if (args.script_contains) {
           queryParts.push(
-            `scriptCONTAINS${sanitizeValue(args.script_contains)}`
+            `scriptLIKE${sanitizeValue(args.script_contains)}`
           );
         }
         if (args.run_as) {

@@ -86,7 +86,7 @@ describe("registerScheduledJobTools", () => {
       expect.objectContaining({
         params: expect.objectContaining({
           sysparm_query:
-            "nameLIKEMonthly^scriptCONTAINSOpen Site Openings^active=true^ORDERBYDESCsys_updated_on",
+            "nameLIKEMonthly^scriptLIKEOpen Site Openings^active=true^ORDERBYDESCsys_updated_on",
           sysparm_limit: 20,
           sysparm_offset: 0,
         }),

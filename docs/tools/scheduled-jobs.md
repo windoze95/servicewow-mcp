@@ -11,7 +11,7 @@ Search Scheduled Script Executions with filters. Returns a paginated summary lis
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | No | Job name LIKE filter |
-| `script_contains` | string | No | Match jobs whose script body CONTAINS this substring |
+| `script_contains` | string | No | Match jobs whose script body contains this substring (LIKE) |
 | `run_as` | string | No | Run-as user `sys_id` (32 hex chars) |
 | `active` | boolean | No | Filter by active flag |
 | `run_type` | string | No | e.g. `periodically`, `monthly`, `weekly`, `daily`, `on_demand` |
