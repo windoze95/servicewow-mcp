@@ -1,6 +1,6 @@
 [docs](../README.md) / tools
 
-# Tools (36)
+# Tools (38)
 
 All MCP tools provided by the server, grouped by domain.
 
@@ -44,6 +44,8 @@ All MCP tools provided by the server, grouped by domain.
 | 34 | `get_current_update_set` | [Update Sets](./update-sets.md) | Get the current update set |
 | 35 | `change_update_set` | [Update Sets](./update-sets.md) | Change the current update set |
 | 36 | `create_update_set` | [Update Sets](./update-sets.md) | Create a new update set |
+| 37 | `search_scheduled_jobs` | [Scheduled Jobs](./scheduled-jobs.md) | Search Scheduled Script Executions |
+| 38 | `get_scheduled_job` | [Scheduled Jobs](./scheduled-jobs.md) | Get a Scheduled Script Execution by sys_id |
 
 ## Common Patterns
 
