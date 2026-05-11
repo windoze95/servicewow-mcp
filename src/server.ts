@@ -66,6 +66,10 @@ export async function createApp(
     }
   });
 
+  // Body parsing middleware (required for OAuth token exchange and revocation)
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
   // MCP SDK OAuth routes (/.well-known/*, /authorize, /token, /register, /revoke)
   app.use(
     mcpAuthRouter({
