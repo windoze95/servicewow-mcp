@@ -1,4 +1,4 @@
-import express, { type Request, type Response } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { randomUUID } from "node:crypto";
@@ -121,27 +121,31 @@ export async function createApp(
   }
 
   // POST /mcp — handles initialize + tool calls (bearer auth required)
-  app.post("/mcp", bearerAuth, async (req: Request, res: Response) => {
+  app.post("/mcp", bearerAuth, async (req: Request, res: Response, next: NextFunction) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
-    if (sessionId && sessions.has(sessionId)) {
-      // Existing session — route to its transport
-      const entry = sessions.get(sessionId)!;
+    try {
+      if (sessionId && sessions.has(sessionId)) {
+        // Existing session — route to its transport
+        const entry = sessions.get(sessionId)!;
+        await entry.transport.handleRequest(req, res);
+        return;
+      }
+
+      // No session or unknown session — create new session
+      const entry = createMcpSession();
+
+      // Connect server to transport
+      await entry.server.connect(entry.transport);
+
       await entry.transport.handleRequest(req, res);
-      return;
+    } catch (err) {
+      next(err);
     }
-
-    // No session or unknown session — create new session
-    const entry = createMcpSession();
-
-    // Connect server to transport
-    await entry.server.connect(entry.transport);
-
-    await entry.transport.handleRequest(req, res);
   });
 
   // GET /mcp — SSE stream for notifications (Streamable HTTP spec)
-  app.get("/mcp", bearerAuth, async (req: Request, res: Response) => {
+  app.get("/mcp", bearerAuth, async (req: Request, res: Response, next: NextFunction) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (!sessionId || !sessions.has(sessionId)) {
@@ -149,12 +153,16 @@ export async function createApp(
       return;
     }
 
-    const entry = sessions.get(sessionId)!;
-    await entry.transport.handleRequest(req, res);
+    try {
+      const entry = sessions.get(sessionId)!;
+      await entry.transport.handleRequest(req, res);
+    } catch (err) {
+      next(err);
+    }
   });
 
   // DELETE /mcp — close session
-  app.delete("/mcp", bearerAuth, async (req: Request, res: Response) => {
+  app.delete("/mcp", bearerAuth, async (req: Request, res: Response, next: NextFunction) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (!sessionId || !sessions.has(sessionId)) {
@@ -162,11 +170,15 @@ export async function createApp(
       return;
     }
 
-    const entry = sessions.get(sessionId)!;
-    await entry.transport.close();
-    sessions.delete(sessionId);
-    logger.info({ sessionId }, "MCP session terminated by client");
-    res.status(200).json({ message: "Session closed" });
+    try {
+      const entry = sessions.get(sessionId)!;
+      await entry.transport.close();
+      sessions.delete(sessionId);
+      logger.info({ sessionId }, "MCP session terminated by client");
+      res.status(200).json({ message: "Session closed" });
+    } catch (err) {
+      next(err);
+    }
   });
 
   return app;
