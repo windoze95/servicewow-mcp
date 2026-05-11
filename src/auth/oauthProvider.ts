@@ -120,6 +120,7 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
       userSysId,
       clientId,
       scopes,
+      currentAccessToken: accessToken,
     }, MCP_REFRESH_TOKEN_TTL);
 
     logger.info({ userSysId }, "MCP access token issued");
@@ -166,6 +167,11 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
       }
     }
 
+    // Revoke the previous access token (if any) before issuing a new one
+    if (refreshData.currentAccessToken) {
+      await this.tokenStore.deleteMcpToken(refreshData.currentAccessToken);
+    }
+
     // Generate new access token
     const newAccessToken = crypto.randomBytes(32).toString("hex");
     const expiresAt = Math.floor(Date.now() / 1000) + MCP_ACCESS_TOKEN_TTL;
@@ -177,6 +183,12 @@ export class ServiceNowOAuthProvider implements OAuthServerProvider {
       scopes: effectiveScopes,
       expiresAt,
     }, MCP_ACCESS_TOKEN_TTL);
+
+    // Update the refresh grant to point to the new access token
+    await this.tokenStore.storeMcpRefreshToken(refreshToken, {
+      ...refreshData,
+      currentAccessToken: newAccessToken,
+    }, MCP_REFRESH_TOKEN_TTL);
 
     logger.info({ userSysId: refreshData.userSysId }, "MCP access token refreshed");
 

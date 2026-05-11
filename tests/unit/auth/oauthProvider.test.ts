@@ -138,7 +138,7 @@ describe("ServiceNowOAuthProvider", () => {
       );
       expect(tokenStore.storeMcpRefreshToken).toHaveBeenCalledWith(
         tokens.refresh_token,
-        expect.objectContaining({ userSysId: "user-abc", clientId: "client-1" }),
+        expect.objectContaining({ userSysId: "user-abc", clientId: "client-1", currentAccessToken: tokens.access_token }),
         2592000
       );
     });
@@ -195,6 +195,7 @@ describe("ServiceNowOAuthProvider", () => {
         userSysId: "user-abc",
         clientId: "client-1",
         scopes: ["read"],
+        currentAccessToken: "old-access-token",
       });
       tokenStore.getToken.mockResolvedValue({ access_token: "sn-token" });
 
@@ -203,10 +204,16 @@ describe("ServiceNowOAuthProvider", () => {
       expect(tokens.access_token).toBeTruthy();
       expect(tokens.token_type).toBe("Bearer");
       expect(tokens.refresh_token).toBe("refresh-123");
+      expect(tokenStore.deleteMcpToken).toHaveBeenCalledWith("old-access-token");
       expect(tokenStore.storeMcpToken).toHaveBeenCalledWith(
         tokens.access_token,
         expect.objectContaining({ scopes: ["read"] }),
         3600
+      );
+      expect(tokenStore.storeMcpRefreshToken).toHaveBeenCalledWith(
+        "refresh-123",
+        expect.objectContaining({ currentAccessToken: tokens.access_token }),
+        2592000
       );
     });
 
@@ -215,6 +222,7 @@ describe("ServiceNowOAuthProvider", () => {
         userSysId: "user-abc",
         clientId: "client-1",
         scopes: ["read", "write"],
+        currentAccessToken: "old-access-token",
       });
       tokenStore.getToken.mockResolvedValue({ access_token: "sn-token" });
 
@@ -224,6 +232,7 @@ describe("ServiceNowOAuthProvider", () => {
         ["read"]
       );
 
+      expect(tokenStore.deleteMcpToken).toHaveBeenCalledWith("old-access-token");
       expect(tokenStore.storeMcpToken).toHaveBeenCalledWith(
         tokens.access_token,
         expect.objectContaining({ scopes: ["read"] }),
