@@ -92,6 +92,12 @@ export function registerAllTools(
         const ctx = await getContext(extra);
         const startTime = Date.now();
         const result = await handler(ctx, args);
+
+        // Check for logical errors (e.g., { success: false, error: ... })
+        if (result && typeof result === 'object' && 'success' in result && (result as any).success === false) {
+          return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }], isError: true };
+        }
+
         const duration = Date.now() - startTime;
         logger.info(
           { userName: ctx.userName, duration },
