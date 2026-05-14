@@ -28,8 +28,9 @@ export function registerTaskTools(
     "Get all open tasks assigned to the authenticated user across all task types (incidents, requests, changes, etc.).",
     {
       offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
+      limit: z.number().int().min(1).max(100).default(10).describe("Maximum number of records to return per page (1-100)"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { offset: number }) => {
+    wrapHandler(async (ctx: ToolContext, args: { offset: number; limit: number }) => {
       const { results, totalCount, truncated } = await paginateAll<Task>(
         async (limit, offset) => {
           const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Task>>(
@@ -49,7 +50,7 @@ export function registerTaskTools(
             totalCount: parseInt(headers["x-total-count"] || "0", 10),
           };
         },
-        { limit: 100, maxPages: 5, startOffset: args.offset }
+        { limit: args.limit, maxPages: 5, startOffset: args.offset }
       );
 
       return {
@@ -74,8 +75,9 @@ export function registerTaskTools(
     "Get pending approvals for the authenticated user.",
     {
       offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
+      limit: z.number().int().min(1).max(100).default(10).describe("Maximum number of records to return per page (1-100)"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { offset: number }) => {
+    wrapHandler(async (ctx: ToolContext, args: { offset: number; limit: number }) => {
       const { results, totalCount, truncated } = await paginateAll<Approval>(
         async (limit, offset) => {
           const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Approval>>(
@@ -95,7 +97,7 @@ export function registerTaskTools(
             totalCount: parseInt(headers["x-total-count"] || "0", 10),
           };
         },
-        { limit: 100, maxPages: 5, startOffset: args.offset }
+        { limit: args.limit, maxPages: 5, startOffset: args.offset }
       );
 
       return {
