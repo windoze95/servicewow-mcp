@@ -7,6 +7,8 @@ import { logger } from "../utils/logger.js";
 
 const REFRESH_BUFFER_SECONDS = 60;
 const LOCK_TTL_SECONDS = 10;
+const LOCK_POLL_INTERVAL_MS = 200;
+const LOCK_POLL_MAX_RETRIES = Math.ceil((LOCK_TTL_SECONDS * 1000) / LOCK_POLL_INTERVAL_MS);
 
 export class TokenRefresher {
   constructor(

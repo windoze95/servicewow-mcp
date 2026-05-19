@@ -34,7 +34,7 @@ export function registerKnowledgeTools(
         "/api/sn_km/knowledge/articles",
         {
           params: {
-            sysparm_query: args.query,
+            sysparm_search: args.query,
             sysparm_limit: args.limit,
           },
         }
