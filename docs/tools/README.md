@@ -1,6 +1,6 @@
 [docs](../README.md) / tools
 
-# Tools (38)
+# Tools (40)
 
 All MCP tools provided by the server, grouped by domain.
 
@@ -46,6 +46,8 @@ All MCP tools provided by the server, grouped by domain.
 | 36 | `create_update_set` | [Update Sets](./update-sets.md) | Create a new update set |
 | 37 | `search_scheduled_jobs` | [Scheduled Jobs](./scheduled-jobs.md) | Search Scheduled Script Executions |
 | 38 | `get_scheduled_job` | [Scheduled Jobs](./scheduled-jobs.md) | Get a Scheduled Script Execution by sys_id |
+| 39 | `search_flow_executions` | [Flow Logs](./flow-logs.md) | Search Flow Designer execution history |
+| 40 | `get_flow_execution` | [Flow Logs](./flow-logs.md) | Get a flow execution + its step log by sys_id |
 
 ## Common Patterns
 
