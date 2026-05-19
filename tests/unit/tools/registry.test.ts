@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   registerCatalogAdminTools: vi.fn(),
   registerScheduledJobTools: vi.fn(),
   registerFlowLogTools: vi.fn(),
+  registerCmdbTools: vi.fn(),
   registerCatalogPrompts: vi.fn(),
   registerIncidentPrompts: vi.fn(),
   registerChangeRequestPrompts: vi.fn(),
@@ -63,6 +64,10 @@ vi.mock("../../../src/tools/scheduledJobs.js", () => ({
 
 vi.mock("../../../src/tools/flowLogs.js", () => ({
   registerFlowLogTools: mocks.registerFlowLogTools,
+}));
+
+vi.mock("../../../src/tools/cmdb.js", () => ({
+  registerCmdbTools: mocks.registerCmdbTools,
 }));
 
 vi.mock("../../../src/prompts/catalog.js", () => ({
@@ -172,6 +177,7 @@ describe("registerAllTools", () => {
     mocks.registerCatalogAdminTools.mockImplementation(() => {});
     mocks.registerScheduledJobTools.mockImplementation(() => {});
     mocks.registerFlowLogTools.mockImplementation(() => {});
+    mocks.registerCmdbTools.mockImplementation(() => {});
     mocks.registerCatalogPrompts.mockImplementation(() => {});
     mocks.registerIncidentPrompts.mockImplementation(() => {});
     mocks.registerChangeRequestPrompts.mockImplementation(() => {});

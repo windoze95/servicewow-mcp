@@ -1,6 +1,6 @@
 [docs](../README.md) / tools
 
-# Tools (40)
+# Tools (46)
 
 All MCP tools provided by the server, grouped by domain.
 
@@ -48,6 +48,12 @@ All MCP tools provided by the server, grouped by domain.
 | 38 | `get_scheduled_job` | [Scheduled Jobs](./scheduled-jobs.md) | Get a Scheduled Script Execution by sys_id |
 | 39 | `search_flow_executions` | [Flow Logs](./flow-logs.md) | Search Flow Designer execution history |
 | 40 | `get_flow_execution` | [Flow Logs](./flow-logs.md) | Get a flow execution + its step log by sys_id |
+| 41 | `search_cis` | [CMDB](./cmdb.md) | Search CMDB CIs by class, name, source, status, last-discovered |
+| 42 | `get_ci` | [CMDB](./cmdb.md) | Get full CI record by sys_id |
+| 43 | `get_ci_relationships` | [CMDB](./cmdb.md) | Read cmdb_rel_ci for a CI (parent_of / child_of) |
+| 44 | `count_cis_by_class` | [CMDB](./cmdb.md) | Aggregate CI counts per class (whole-CMDB shape) |
+| 45 | `find_stale_cis` | [CMDB](./cmdb.md) | Find migration-skip candidate CIs by staleness signal |
+| 46 | `get_ci_ticket_references` | [CMDB](./cmdb.md) | Count incident/change/problem refs to a CI |
 
 ## Common Patterns
 
