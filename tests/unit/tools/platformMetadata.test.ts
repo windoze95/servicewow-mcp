@@ -602,6 +602,32 @@ describe("registerPlatformMetadataTools", () => {
     });
   });
 
+  it("get_flow_definition rethrows a non-missing-table error (e.g. 403) from the *_v2 lookup", async () => {
+    const { handlers, snClient } = setup();
+    const sysId = "0123456789abcdef0123456789abcdef";
+
+    snClient.get
+      .mockResolvedValueOnce({
+        data: { result: { sys_id: sysId, name: "Outage created from MIM" } },
+        headers: {},
+      })
+      // base trigger empty, then the v2 trigger lookup fails with a 403 (ACL)
+      .mockResolvedValueOnce({ data: { result: [] }, headers: { "x-total-count": "0" } })
+      .mockRejectedValueOnce({ statusCode: 403, message: "Insufficient permissions" });
+
+    // The ACL error must surface, not be masked as "no components".
+    await expect(
+      handlers.get_flow_definition({
+        sys_id: sysId,
+        include_components: true,
+        component_limit: 200,
+      })
+    ).rejects.toMatchObject({ statusCode: 403 });
+
+    // header + base trigger + v2 trigger (which threw) — short-circuits there
+    expect(snClient.get).toHaveBeenCalledTimes(3);
+  });
+
   it("get_flow_definition with include_components=false fetches only the header", async () => {
     const { handlers, snClient } = setup();
     const sysId = "0123456789abcdef0123456789abcdef";

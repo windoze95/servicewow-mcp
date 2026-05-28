@@ -107,6 +107,20 @@ interface FlowComponentResult {
   truncated: boolean;
 }
 
+// The *_v2 instance tables are absent before Washington DC. The only request
+// made against them here is a well-formed query (a validated sys_id, no field
+// restriction) — and the Table API ignores unknown query/order fields rather
+// than erroring — so the single client-side reason this call can fail is that
+// the table itself is not present, which ServiceNow reports as a 400/404.
+// Operational failures (auth 401, ACL 403, rate-limit 429, and server/transient
+// errors or network timeouts, which the client maps to 500) carry other
+// statuses and must NOT be masked as "no components", so only a 400/404 is
+// treated as a missing table; everything else is rethrown.
+function isMissingTableError(err: unknown): boolean {
+  const status = (err as { statusCode?: number })?.statusCode;
+  return status === 400 || status === 404;
+}
+
 // Fetch a flow's trigger/action instances. Both instance types reference the
 // flow through a `flow` field. The base table is queried first; if it has no
 // rows (a Flow Engine V2 flow keeps its instances in the *_v2 table) the v2
@@ -147,8 +161,9 @@ async function fetchFlowComponents(
   }
 
   // No rows on the base table — try the Flow Engine V2 table. It does not exist
-  // on releases before Washington DC, so swallow a lookup failure and fall back
-  // to the (empty) base result.
+  // on releases before Washington DC; tolerate only that (a 400/404 missing
+  // table) and fall back to the empty base result, but let any real error
+  // (ACL, rate limit, server/transient) propagate through normal handling.
   try {
     const v2 = await ctx.snClient.get<ServiceNowListResponse<SysIdRecord>>(
       `/api/now/table/${v2Table}`,
@@ -157,7 +172,10 @@ async function fetchFlowComponents(
     if (v2.data.result.length > 0) {
       return pack(v2Table, v2.data, v2.headers);
     }
-  } catch {
+  } catch (err) {
+    if (!isMissingTableError(err)) {
+      throw err;
+    }
     // v2 table not present on this release; keep the empty base result below.
   }
 
