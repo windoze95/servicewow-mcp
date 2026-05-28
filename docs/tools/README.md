@@ -1,6 +1,6 @@
 [docs](../README.md) / tools
 
-# Tools (46)
+# Tools (52)
 
 All MCP tools provided by the server, grouped by domain.
 
@@ -54,6 +54,12 @@ All MCP tools provided by the server, grouped by domain.
 | 44 | `count_cis_by_class` | [CMDB](./cmdb.md) | Aggregate CI counts per class (whole-CMDB shape) |
 | 45 | `find_stale_cis` | [CMDB](./cmdb.md) | Find migration-skip candidate CIs by staleness signal |
 | 46 | `get_ci_ticket_references` | [CMDB](./cmdb.md) | Count incident/change/problem refs to a CI |
+| 47 | `search_business_rules` | [Platform Metadata](./platform-metadata.md) | Search business rules (sys_script) by table, when, script body |
+| 48 | `get_business_rule` | [Platform Metadata](./platform-metadata.md) | Get a business rule + full script/condition by sys_id |
+| 49 | `get_list_view` | [Platform Metadata](./platform-metadata.md) | Read list view column layouts (sys_ui_list) + columns |
+| 50 | `search_navigator_modules` | [Platform Metadata](./platform-metadata.md) | Search nav modules (sys_app_module) — where list filters live |
+| 51 | `search_flow_definitions` | [Platform Metadata](./platform-metadata.md) | Search Flow Designer flow/subflow definitions |
+| 52 | `get_flow_definition` | [Platform Metadata](./platform-metadata.md) | Get a flow definition + triggers + ordered action steps |
 
 ## Common Patterns
 

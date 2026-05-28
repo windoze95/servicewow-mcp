@@ -19,6 +19,7 @@ import { registerCatalogAdminTools } from "./catalogAdmin.js";
 import { registerScheduledJobTools } from "./scheduledJobs.js";
 import { registerFlowLogTools } from "./flowLogs.js";
 import { registerCmdbTools } from "./cmdb.js";
+import { registerPlatformMetadataTools } from "./platformMetadata.js";
 import { registerCatalogPrompts } from "../prompts/catalog.js";
 import { registerIncidentPrompts } from "../prompts/incidents.js";
 import { registerChangeRequestPrompts } from "../prompts/changeRequests.js";
@@ -122,6 +123,7 @@ export function registerAllTools(
   registerScheduledJobTools(server, wrapHandler);
   registerFlowLogTools(server, wrapHandler);
   registerCmdbTools(server, wrapHandler);
+  registerPlatformMetadataTools(server, wrapHandler);
 
   registerCatalogPrompts(server);
   registerResources(server, getContext);
