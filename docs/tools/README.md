@@ -1,6 +1,6 @@
 [docs](../README.md) / tools
 
-# Tools (53)
+# Tools (62)
 
 All MCP tools provided by the server, grouped by domain.
 
@@ -61,6 +61,15 @@ All MCP tools provided by the server, grouped by domain.
 | 51 | `search_navigator_modules` | [Platform Metadata](./platform-metadata.md) | Search nav modules (sys_app_module) — where list filters live |
 | 52 | `search_flow_definitions` | [Platform Metadata](./platform-metadata.md) | Search Flow Designer flow/subflow definitions |
 | 53 | `get_flow_definition` | [Platform Metadata](./platform-metadata.md) | Get a flow definition + triggers + ordered action steps |
+| 54 | `get_flow_action_inputs` | [Platform Metadata](./platform-metadata.md) | Expand an action instance's input values (the fields a step writes) |
+| 55 | `search_ui_policies` | [Form Rules](./form-rules.md) | Search UI policies (sys_ui_policy) by table/description |
+| 56 | `get_ui_policy` | [Form Rules](./form-rules.md) | Get a UI policy + its per-field actions |
+| 57 | `search_client_scripts` | [Form Rules](./form-rules.md) | Search client scripts (sys_script_client) |
+| 58 | `get_client_script` | [Form Rules](./form-rules.md) | Get a client script + full body by sys_id |
+| 59 | `search_data_policies` | [Form Rules](./form-rules.md) | Search data policies (sys_data_policy2) |
+| 60 | `get_data_policy` | [Form Rules](./form-rules.md) | Get a data policy + its per-field rules |
+| 61 | `search_acls` | [Access Control](./access-control.md) | Search ACLs (sys_security_acl) by name/operation/type |
+| 62 | `get_acl` | [Access Control](./access-control.md) | Get an ACL + its roles, condition, and script |
 
 ## Common Patterns
 

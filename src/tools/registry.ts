@@ -20,6 +20,8 @@ import { registerScheduledJobTools } from "./scheduledJobs.js";
 import { registerFlowLogTools } from "./flowLogs.js";
 import { registerCmdbTools } from "./cmdb.js";
 import { registerPlatformMetadataTools } from "./platformMetadata.js";
+import { registerFormRulesTools } from "./formRules.js";
+import { registerAccessControlTools } from "./accessControl.js";
 import { registerCatalogPrompts } from "../prompts/catalog.js";
 import { registerIncidentPrompts } from "../prompts/incidents.js";
 import { registerChangeRequestPrompts } from "../prompts/changeRequests.js";
@@ -124,6 +126,8 @@ export function registerAllTools(
   registerFlowLogTools(server, wrapHandler);
   registerCmdbTools(server, wrapHandler);
   registerPlatformMetadataTools(server, wrapHandler);
+  registerFormRulesTools(server, wrapHandler);
+  registerAccessControlTools(server, wrapHandler);
 
   registerCatalogPrompts(server);
   registerResources(server, getContext);

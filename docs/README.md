@@ -42,11 +42,11 @@ Server-side protections and enforcement.
 - [Rate Limiting](./security/rate-limiting.md) — Token bucket via Redis Lua script
 - [Error Handling](./security/error-handling.md) — ErrorCode enum and error normalization
 
-## Tools (53)
+## Tools (62)
 
 All MCP tools grouped by domain.
 
-- [Master Index](./tools/README.md) — All 53 tools at a glance
+- [Master Index](./tools/README.md) — All 62 tools at a glance
 - [Incidents](./tools/incidents.md) — 5 tools
 - [Change Requests](./tools/change-requests.md) — 6 tools
 - [Users and Groups](./tools/users-and-groups.md) — 3 tools
@@ -58,7 +58,9 @@ All MCP tools grouped by domain.
 - [Scheduled Jobs](./tools/scheduled-jobs.md) — 2 tools
 - [Flow Logs](./tools/flow-logs.md) — 2 tools
 - [CMDB](./tools/cmdb.md) — 6 tools
-- [Platform Metadata](./tools/platform-metadata.md) — 6 tools
+- [Platform Metadata](./tools/platform-metadata.md) — 7 tools
+- [Form Rules](./tools/form-rules.md) — 6 tools
+- [Access Control](./tools/access-control.md) — 2 tools
 
 ## Resources (5)
 

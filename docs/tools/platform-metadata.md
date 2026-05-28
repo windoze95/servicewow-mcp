@@ -1,6 +1,6 @@
 [docs](../README.md) / [tools](./README.md) / platform-metadata
 
-# Platform Metadata Tools (6)
+# Platform Metadata Tools (7)
 
 Read-only tools for inspecting **platform configuration** — the business rules, list views, navigator modules, and flow definitions that drive record and UI behaviour. These answer questions like "what sets this field?" and "what filters this list?" without UI access.
 
@@ -23,13 +23,14 @@ Search the `sys_script` table. Returns a paginated summary ordered by most recen
 | `name` | string | No | Business rule name LIKE filter |
 | `when` | string | No | Execution phase: `before`, `after`, `async`, or `display` |
 | `active` | boolean | No | Active flag |
-| `script_contains` | string | No | Substring LIKE match against the `script` body (e.g. a field name). Matches the `script` field only — see note below |
+| `script_contains` | string | No | Substring LIKE match against the `script` body (e.g. a field name) |
+| `condition_contains` | string | No | Substring LIKE match against the `condition` OR `filter_condition` — the fields that gate when a rule runs |
 | `limit` | number | No | 1-100, default 20 |
 | `offset` | number | No | Pagination offset, default 0 |
 
 **Returns**: Rule summaries (`sys_id`, `name`, `collection`, `when`, `order`, `active`, `action_insert/update/delete/query`, `advanced`, `sys_updated_on`, `self_link`) plus pagination `metadata`.
 
-> `script_contains` matches the `script` body only. Logic placed in the `condition` or `filter_condition` fields is **not** searched (the encoded-query escaping rules out a safe multi-field OR). If a script match comes up empty, list a table's rules (`table=...`) and read candidates with `get_business_rule`.
+> `script_contains` matches the `script` body; `condition_contains` matches the `condition` OR `filter_condition`. They are independent filters — `condition_contains` is emitted as a trailing `conditionLIKEv^ORfilter_conditionLIKEv` group so the leading filters stay ANDed. Use `get_business_rule` to read the full bodies of any match.
 
 ## `get_business_rule`
 
@@ -96,10 +97,25 @@ Get a flow definition (`sys_hub_flow`) by `sys_id`, with its trigger instance(s)
 
 **Returns**: The full flow header plus `self_link`. When `include_components` is true: a `triggers` array, an `actions` array (each row with `self_link`), and `component_metadata` reporting, per type, the source `table`, `total_count`, `returned_count`, and `truncated`.
 
-> **What is and isn't returned**: the trigger's table/condition and the ordered list of steps (with their action type and label) are returned. The per-step input **values** — the literal field assignments, e.g. setting a field to `true` — are stored separately in `sys_variable_value` (keyed by `document` / `document_key`) and are **not** expanded here; open the flow in Flow Designer or inspect those records for literal field writes.
+> **What is and isn't returned**: the trigger's table/condition and the ordered list of steps (with their action type and label) are returned. The per-step input **values** — the literal field assignments, e.g. setting a field to `true` — are stored separately in `sys_variable_value` (keyed by `document` / `document_key`) and are **not** expanded here — use the `get_flow_action_inputs` tool (below) on a specific action instance to read them.
 >
 > **Flow Engine V2**: components are read from the base `sys_hub_trigger_instance` / `sys_hub_action_instance` tables, falling back to the `*_v2` tables (Washington DC and later). `component_metadata[type].table` reports which table the rows came from. If both are empty for a flow you expect to have steps, check the caller's read access to those tables.
 
+## `get_flow_action_inputs`
+
+Expand the configured **input values** of one Flow Designer action instance (`sys_hub_action_instance`) by `sys_id` — the actual field assignments a "Create Record" / "Update Record" step makes, not just that it is a Create Record. Use after `get_flow_definition` (which lists the action instances) to prove which fields a step writes.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `sys_id` | string | Yes | Action instance `sys_id` (`sys_hub_action_instance`, 32 hex chars) |
+| `limit` | number | No | Max `sys_variable_value` input rows. 1-500, default 200 |
+
+**Returns**: `data` with:
+- `input_values` — `sys_variable_value` rows keyed by `document_key` = the action instance (each with `variable`, `value`, and `self_link`), plus `metadata.input_values` (`total_count`, `returned_count`, `truncated`). This is where pre-Washington flows store the field assignments.
+- `action_instance` — the action instance record itself (fetched from the base table, falling back to `sys_hub_action_instance_v2`), so its `values` field is surfaced on **Flow Engine V2** flows where the inputs live there instead. `null` if the sys_id isn't an action instance in either table; `metadata.action_instance_found` / `action_instance_table` report which.
+
+> Reads **both** storage models so it works regardless of release. The V2 `values` field can be an encoded blob; the `sys_variable_value` rows are the human-readable form. Only a genuine missing-table / missing-record (400/404) is tolerated when probing base vs. v2 — ACL, rate-limit, and server errors surface normally.
+
 ---
 
-**See also**: [Flow Logs](./flow-logs.md) · [Scheduled Jobs](./scheduled-jobs.md) · [Input Validation](../security/input-validation.md)
+**See also**: [Flow Logs](./flow-logs.md) · [Form Rules](./form-rules.md) · [Access Control](./access-control.md) · [Input Validation](../security/input-validation.md)
