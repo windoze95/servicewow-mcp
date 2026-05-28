@@ -54,14 +54,14 @@ const CLIENT_SCRIPT_SUMMARY_FIELDS = [
 
 // Data policies (sys_data_policy2 — the "2" is the real table) enforce
 // mandatory / read-only at the data layer (and optionally the UI). The target
-// table is `table`; the per-field rules live in sys_data_policy_rule (joined via
-// `policy`).
+// table is the `model_table` column; the per-field rules live in
+// sys_data_policy_rule (joined back via the `sys_data_policy` reference).
 const DATA_POLICY_TABLE = "sys_data_policy2";
 const DATA_POLICY_RULE_TABLE = "sys_data_policy_rule";
 const DATA_POLICY_SUMMARY_FIELDS = [
   "sys_id",
   "short_description",
-  "table",
+  "model_table",
   "active",
   "enforce_ui",
   "reverse_if_false",
@@ -373,7 +373,9 @@ export function registerFormRulesTools(
       table: z
         .string()
         .optional()
-        .describe("Filter by the table the policy applies to, e.g. 'incident'"),
+        .describe(
+          "Filter by the table the policy applies to (matched against the `model_table` column), e.g. 'incident'"
+        ),
       short_description: z
         .string()
         .optional()
@@ -406,7 +408,7 @@ export function registerFormRulesTools(
       ) => {
         const queryParts: string[] = [];
         if (args.table) {
-          queryParts.push(`table=${sanitizeValue(args.table)}`);
+          queryParts.push(`model_table=${sanitizeValue(args.table)}`);
         }
         if (args.short_description) {
           queryParts.push(
@@ -479,14 +481,15 @@ export function registerFormRulesTools(
           ServiceNowSingleResponse<SysIdRecord>
         >(`/api/now/table/${DATA_POLICY_TABLE}/${args.sys_id}`);
 
-        // sys_data_policy_rule links back via `policy`. All columns (no field
-        // restriction) so field / mandatory / disabled all surface.
+        // sys_data_policy_rule links back via the `sys_data_policy` reference.
+        // All columns (no field restriction) so field / mandatory / disabled
+        // all surface.
         const { data: ruleData, headers: ruleHeaders } =
           await ctx.snClient.get<ServiceNowListResponse<SysIdRecord>>(
             `/api/now/table/${DATA_POLICY_RULE_TABLE}`,
             {
               params: {
-                sysparm_query: `policy=${args.sys_id}`,
+                sysparm_query: `sys_data_policy=${args.sys_id}`,
                 sysparm_limit: args.rule_limit,
               },
             }

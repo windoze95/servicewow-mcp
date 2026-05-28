@@ -69,17 +69,17 @@ Search `sys_data_policy2` (the `2` is the real table name). Returns a paginated 
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `table` | string | No | Table the policy applies to, e.g. `incident` |
+| `table` | string | No | Table the policy applies to — matched against the `model_table` column, e.g. `incident` |
 | `short_description` | string | No | Policy description LIKE filter |
 | `active` | boolean | No | Active flag |
 | `limit` | number | No | 1-100, default 20 |
 | `offset` | number | No | Pagination offset, default 0 |
 
-**Returns**: Policy summaries (`sys_id`, `short_description`, `table`, `active`, `enforce_ui`, `reverse_if_false`, `apply_import_set`, `sys_updated_on`, `self_link`) plus pagination `metadata`.
+**Returns**: Policy summaries (`sys_id`, `short_description`, `model_table`, `active`, `enforce_ui`, `reverse_if_false`, `apply_import_set`, `sys_updated_on`, `self_link`) plus pagination `metadata`.
 
 ## `get_data_policy`
 
-Get one data policy by `sys_id` with its full record (including `conditions`) and its per-field rules from `sys_data_policy_rule` (joined via `policy`).
+Get one data policy by `sys_id` with its full record (including `conditions`) and its per-field rules from `sys_data_policy_rule` (joined via the `sys_data_policy` reference).
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|

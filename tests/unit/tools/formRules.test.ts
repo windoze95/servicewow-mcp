@@ -224,7 +224,7 @@ describe("registerFormRulesTools", () => {
       "/api/now/table/sys_data_policy2",
       expect.objectContaining({
         params: expect.objectContaining({
-          sysparm_query: "table=incident^active=true^ORDERBYDESCsys_updated_on",
+          sysparm_query: "model_table=incident^active=true^ORDERBYDESCsys_updated_on",
         }),
       })
     );
@@ -264,7 +264,7 @@ describe("registerFormRulesTools", () => {
       "/api/now/table/sys_data_policy_rule",
       expect.objectContaining({
         params: expect.objectContaining({
-          sysparm_query: `policy=${sysId}`,
+          sysparm_query: `sys_data_policy=${sysId}`,
         }),
       })
     );
