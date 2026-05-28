@@ -118,6 +118,36 @@ describe("registerPlatformMetadataTools", () => {
     );
   });
 
+  it("search_business_rules ORs condition_contains across condition + filter_condition as the trailing group", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_business_rules({
+      table: "incident",
+      script_contains: "abc",
+      condition_contains: "u_major_incident",
+      limit: 20,
+      offset: 0,
+    });
+
+    // collection + scriptLIKE are ANDed; the condition/filter_condition OR group
+    // is contiguous and trails just before ORDERBY so the leading filters stay
+    // ANDed: collection=incident AND scriptLIKEabc AND (conditionLIKE.. OR filter_conditionLIKE..)
+    expect(snClient.get).toHaveBeenCalledWith(
+      "/api/now/table/sys_script",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          sysparm_query:
+            "collection=incident^scriptLIKEabc^conditionLIKEu_major_incident^ORfilter_conditionLIKEu_major_incident^ORDERBYDESCsys_updated_on",
+        }),
+      })
+    );
+  });
+
   // ---- get_business_rule ----------------------------------------------------
 
   it("get_business_rule returns the full record with a self_link", async () => {
@@ -648,5 +678,162 @@ describe("registerPlatformMetadataTools", () => {
     expect(result.data.triggers).toBeUndefined();
     expect(result.data.actions).toBeUndefined();
     expect(result.data.component_metadata).toBeUndefined();
+  });
+
+  // ---- get_flow_action_inputs -----------------------------------------------
+
+  it("get_flow_action_inputs rejects an invalid sys_id", async () => {
+    const { handlers, snClient } = setup();
+    const result = (await handlers.get_flow_action_inputs({
+      sys_id: "nope",
+      limit: 200,
+    })) as { success: boolean; error: { code: string } };
+    expect(snClient.get).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("get_flow_action_inputs returns sys_variable_value rows and the base action instance", async () => {
+    const { handlers, snClient } = setup();
+    const sysId = "0123456789abcdef0123456789abcdef";
+
+    snClient.get
+      // sys_variable_value rows (keyed by document_key)
+      .mockResolvedValueOnce({
+        data: {
+          result: [
+            { sys_id: "vv-1", variable: "Table", value: "cmdb_ci_outage" },
+            { sys_id: "vv-2", variable: "Field values", value: "u_major_incident=true" },
+          ],
+        },
+        headers: { "x-total-count": "2" },
+      })
+      // action instance found in the base table
+      .mockResolvedValueOnce({
+        data: { result: { sys_id: sysId, action_type: "Create Record" } },
+        headers: {},
+      });
+
+    const result = (await handlers.get_flow_action_inputs({
+      sys_id: sysId,
+      limit: 200,
+    })) as {
+      success: boolean;
+      data: {
+        action_instance: { table: string; self_link: string } | null;
+        input_values: { sys_id: string; self_link: string }[];
+        metadata: {
+          input_values: { total_count: number; truncated: boolean };
+          action_instance_found: boolean;
+          action_instance_table: string | null;
+        };
+      };
+    };
+
+    expect(snClient.get).toHaveBeenNthCalledWith(
+      1,
+      "/api/now/table/sys_variable_value",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          sysparm_query: `document_key=${sysId}^ORDERBYsys_created_on`,
+          sysparm_fields: "sys_id,document,document_key,variable,value",
+        }),
+      })
+    );
+    expect(snClient.get).toHaveBeenNthCalledWith(
+      2,
+      `/api/now/table/sys_hub_action_instance/${sysId}`
+    );
+    expect(result.success).toBe(true);
+    expect(result.data.input_values).toHaveLength(2);
+    expect(result.data.input_values[0].self_link).toBe(
+      "https://example.service-now.com/sys_variable_value.do?sys_id=vv-1"
+    );
+    expect(result.data.action_instance?.table).toBe("sys_hub_action_instance");
+    expect(result.data.metadata.action_instance_found).toBe(true);
+    expect(result.data.metadata.action_instance_table).toBe(
+      "sys_hub_action_instance"
+    );
+    expect(result.data.metadata.input_values.total_count).toBe(2);
+  });
+
+  it("get_flow_action_inputs falls back to the *_v2 action instance on a base 404", async () => {
+    const { handlers, snClient } = setup();
+    const sysId = "0123456789abcdef0123456789abcdef";
+
+    snClient.get
+      .mockResolvedValueOnce({ data: { result: [] }, headers: { "x-total-count": "0" } })
+      // base action instance: 404 (record lives in the v2 table)
+      .mockRejectedValueOnce({ statusCode: 404, message: "Record not found" })
+      // v2 action instance: found, carries the encoded `values` field
+      .mockResolvedValueOnce({
+        data: { result: { sys_id: sysId, values: "<encoded>" } },
+        headers: {},
+      });
+
+    const result = (await handlers.get_flow_action_inputs({
+      sys_id: sysId,
+      limit: 200,
+    })) as {
+      success: boolean;
+      data: {
+        action_instance: { table: string } | null;
+        metadata: { action_instance_table: string | null };
+      };
+    };
+
+    expect(snClient.get).toHaveBeenNthCalledWith(
+      3,
+      `/api/now/table/sys_hub_action_instance_v2/${sysId}`
+    );
+    expect(result.data.action_instance?.table).toBe("sys_hub_action_instance_v2");
+    expect(result.data.metadata.action_instance_table).toBe(
+      "sys_hub_action_instance_v2"
+    );
+  });
+
+  it("get_flow_action_inputs rethrows a non-404/400 error (e.g. 403) from the instance fetch", async () => {
+    const { handlers, snClient } = setup();
+    const sysId = "0123456789abcdef0123456789abcdef";
+
+    snClient.get
+      .mockResolvedValueOnce({ data: { result: [] }, headers: { "x-total-count": "0" } })
+      .mockRejectedValueOnce({ statusCode: 403, message: "Insufficient permissions" });
+
+    await expect(
+      handlers.get_flow_action_inputs({ sys_id: sysId, limit: 200 })
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("get_flow_action_inputs returns a null action_instance when neither table has it", async () => {
+    const { handlers, snClient } = setup();
+    const sysId = "0123456789abcdef0123456789abcdef";
+
+    snClient.get
+      .mockResolvedValueOnce({
+        data: { result: [{ sys_id: "vv-1", variable: "Table", value: "x" }] },
+        headers: { "x-total-count": "1" },
+      })
+      .mockRejectedValueOnce({ statusCode: 404, message: "Record not found" })
+      .mockRejectedValueOnce({ statusCode: 404, message: "Record not found" });
+
+    const result = (await handlers.get_flow_action_inputs({
+      sys_id: sysId,
+      limit: 200,
+    })) as {
+      success: boolean;
+      data: {
+        action_instance: unknown;
+        input_values: unknown[];
+        metadata: { action_instance_found: boolean; action_instance_table: string | null };
+      };
+    };
+
+    expect(result.success).toBe(true);
+    expect(result.data.action_instance).toBeNull();
+    expect(result.data.metadata.action_instance_found).toBe(false);
+    expect(result.data.metadata.action_instance_table).toBeNull();
+    // the variable-value rows are still returned even when the instance is absent
+    expect(result.data.input_values).toHaveLength(1);
   });
 });

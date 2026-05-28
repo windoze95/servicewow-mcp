@@ -94,6 +94,20 @@ const TRIGGER_TABLE_V2 = "sys_hub_trigger_instance_v2";
 const ACTION_TABLE = "sys_hub_action_instance";
 const ACTION_TABLE_V2 = "sys_hub_action_instance_v2";
 
+// A flow action/trigger instance's configured input VALUES — the field
+// assignments a "Create/Update Record" step actually makes. On pre-Washington
+// flows these are sys_variable_value rows keyed by document_key = the instance
+// sys_id; on Flow Engine V2 they move onto the instance's own `values` field
+// (which can be an encoded blob). get_flow_action_inputs reads both.
+const VARIABLE_VALUE_TABLE = "sys_variable_value";
+const VARIABLE_VALUE_FIELDS = [
+  "sys_id",
+  "document",
+  "document_key",
+  "variable",
+  "value",
+].join(",");
+
 interface SysIdRecord {
   sys_id: string;
   [key: string]: unknown;
@@ -182,6 +196,31 @@ async function fetchFlowComponents(
   return pack(baseTable, base.data, base.headers);
 }
 
+// Fetch one action instance record by sys_id, trying the base table then the
+// Flow Engine V2 table. A GET by sys_id answers 404 when the record is not in
+// that table (it may live in the other) and 400 when the *_v2 table is absent
+// on older releases; both mean "not here, try the next", while auth, ACL,
+// rate-limit, and server errors must propagate. Returns null if neither has it.
+async function fetchActionInstanceRecord(
+  ctx: ToolContext,
+  sysId: string
+): Promise<{ table: string; record: SysIdRecord } | null> {
+  for (const table of [ACTION_TABLE, ACTION_TABLE_V2]) {
+    try {
+      const { data } = await ctx.snClient.get<
+        ServiceNowSingleResponse<SysIdRecord>
+      >(`/api/now/table/${table}/${sysId}`);
+      return { table, record: data.result };
+    } catch (err) {
+      if (!isMissingTableError(err)) {
+        throw err;
+      }
+      // Not found in this table (404) or table absent (400) — try the next.
+    }
+  }
+  return null;
+}
+
 export function registerPlatformMetadataTools(
   server: McpServer,
   wrapHandler: WrapHandler
@@ -189,7 +228,7 @@ export function registerPlatformMetadataTools(
   // search_business_rules
   server.tool(
     "search_business_rules",
-    "Search business rules (sys_script) by the table they run on (collection), name, execution phase (when), active flag, and an optional script-body substring. Use this to find server-side automation that writes a field — e.g. a rule on 'incident' or 'cmdb_ci_outage' that sets a custom field. Note: script_contains matches the `script` body only; logic placed in the condition or filter_condition fields is returned by get_business_rule, so list a table's rules and drill in if a script match comes up empty. Returns a paginated summary ordered by most recently updated.",
+    "Search business rules (sys_script) by the table they run on (collection), name, execution phase (when), active flag, and substrings of the script body or the condition/filter_condition. Use this to find server-side automation that writes or gates on a field — e.g. a rule on 'incident' or 'cmdb_ci_outage' referencing a custom field. `script_contains` matches the `script` body; `condition_contains` matches the `condition` OR `filter_condition` (the fields that gate when a rule runs). Returns a paginated summary ordered by most recently updated.",
     {
       table: z
         .string()
@@ -214,6 +253,12 @@ export function registerPlatformMetadataTools(
         .describe(
           "Filter to rules whose `script` body CONTAINS this substring (e.g. a field name like 'u_major_incident'). Matches the script field only."
         ),
+      condition_contains: z
+        .string()
+        .optional()
+        .describe(
+          "Filter to rules whose `condition` OR `filter_condition` CONTAINS this substring — the fields that gate when a rule runs. Use to find rules that branch on a field, e.g. 'u_major_incident'."
+        ),
       limit: z
         .number()
         .int()
@@ -237,6 +282,7 @@ export function registerPlatformMetadataTools(
           when?: string;
           active?: boolean;
           script_contains?: string;
+          condition_contains?: string;
           limit: number;
           offset: number;
         }
@@ -257,6 +303,16 @@ export function registerPlatformMetadataTools(
         }
         if (args.script_contains) {
           queryParts.push(`scriptLIKE${sanitizeValue(args.script_contains)}`);
+        }
+        // condition + filter_condition are separate columns; OR them so one
+        // search spans both gating fields. This is pushed LAST (just before
+        // ORDERBY) so the OR run is contiguous and the preceding filters stay
+        // ANDed: ServiceNow groups a contiguous `^OR` run and treats the
+        // surrounding `^` as the AND boundary, i.e.
+        //   collection=x ^ ... ^ (conditionLIKEv OR filter_conditionLIKEv).
+        if (args.condition_contains) {
+          const v = sanitizeValue(args.condition_contains);
+          queryParts.push(`conditionLIKE${v}^ORfilter_conditionLIKE${v}`);
         }
 
         queryParts.push("ORDERBYDESCsys_updated_on");
@@ -650,7 +706,7 @@ export function registerPlatformMetadataTools(
   // get_flow_definition
   server.tool(
     "get_flow_definition",
-    "Get a Flow Designer flow definition (sys_hub_flow) by sys_id, with its trigger instance(s) and ordered action steps. The flow header gives name/active/type/scope; the triggers reveal what fires the flow (e.g. their table and condition columns); the action instances list the ordered steps with their action type and label. NOTE: the per-step input VALUES (the actual field assignments, e.g. setting a field to true) are stored separately (sys_variable_value) and are NOT expanded here — open the flow in Flow Designer or inspect those records to see literal field writes. Components are read from the base instance tables, falling back to the Flow Engine V2 (*_v2) tables on Washington DC and later releases.",
+    "Get a Flow Designer flow definition (sys_hub_flow) by sys_id, with its trigger instance(s) and ordered action steps. The flow header gives name/active/type/scope; the triggers reveal what fires the flow (e.g. their table and condition columns); the action instances list the ordered steps with their action type and label. NOTE: the per-step input VALUES (the actual field assignments, e.g. setting a field to true) are stored separately (sys_variable_value, or the `values` field on Flow Engine V2 action instances) and are NOT expanded here — call get_flow_action_inputs on a specific action instance sys_id to read them. Components are read from the base instance tables, falling back to the Flow Engine V2 (*_v2) tables on Washington DC and later releases.",
     {
       sys_id: z.string().describe("Flow definition sys_id (sys_hub_flow, 32 hex chars)"),
       include_components: z
@@ -736,6 +792,93 @@ export function registerPlatformMetadataTools(
         return {
           success: true,
           data: result,
+        };
+      }
+    )
+  );
+
+  // get_flow_action_inputs
+  server.tool(
+    "get_flow_action_inputs",
+    "Expand the configured INPUT VALUES of one Flow Designer action instance (sys_hub_action_instance) by sys_id — the actual field assignments a 'Create Record' / 'Update Record' step makes, not just that it is a Create Record. Reads the pre-Washington store (sys_variable_value rows keyed by document_key) AND fetches the action instance record itself (base or Flow Engine V2 *_v2 table) so its `values` field is surfaced on V2 flows (where that field can be an encoded blob). Use after get_flow_definition to prove which fields a step writes. Reference values come back as display values.",
+    {
+      sys_id: z
+        .string()
+        .describe(
+          "Action instance sys_id (sys_hub_action_instance, 32 hex chars)"
+        ),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(500)
+        .default(200)
+        .describe("Maximum sys_variable_value input rows to return"),
+    },
+    wrapHandler(
+      async (ctx: ToolContext, args: { sys_id: string; limit: number }) => {
+        if (!validateSysId(args.sys_id)) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "sys_id must be a 32-character sys_id",
+            },
+          };
+        }
+
+        // V1 store: input values as sys_variable_value rows keyed by the action
+        // instance sys_id (document_key). document_key is a unique sys_id, so
+        // filtering on it alone is sufficient and avoids guessing the `document`
+        // table-name value.
+        const { data: vvData, headers: vvHeaders } = await ctx.snClient.get<
+          ServiceNowListResponse<SysIdRecord>
+        >(`/api/now/table/${VARIABLE_VALUE_TABLE}`, {
+          params: {
+            sysparm_query: `document_key=${args.sys_id}^ORDERBYsys_created_on`,
+            sysparm_limit: args.limit,
+            sysparm_fields: VARIABLE_VALUE_FIELDS,
+          },
+        });
+        const vvTotal = parseInt(vvHeaders["x-total-count"] || "0", 10);
+
+        // The action instance record itself (base or V2). On V2 the configured
+        // inputs live on the instance's `values` field rather than in
+        // sys_variable_value, so surfacing the record covers both engines.
+        const instance = await fetchActionInstanceRecord(ctx, args.sys_id);
+
+        return {
+          success: true,
+          data: {
+            action_instance: instance
+              ? {
+                  ...instance.record,
+                  table: instance.table,
+                  self_link: buildRecordUrl(
+                    ctx.instanceUrl,
+                    instance.table,
+                    instance.record.sys_id
+                  ),
+                }
+              : null,
+            input_values: vvData.result.map((r) => ({
+              ...r,
+              self_link: buildRecordUrl(
+                ctx.instanceUrl,
+                VARIABLE_VALUE_TABLE,
+                r.sys_id
+              ),
+            })),
+            metadata: {
+              input_values: {
+                total_count: vvTotal,
+                returned_count: vvData.result.length,
+                truncated: vvTotal > vvData.result.length,
+              },
+              action_instance_found: instance !== null,
+              action_instance_table: instance?.table ?? null,
+            },
+          },
         };
       }
     )
