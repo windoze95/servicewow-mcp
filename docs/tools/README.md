@@ -1,6 +1,6 @@
 [docs](../README.md) / tools
 
-# Tools (46)
+# Tools (53)
 
 All MCP tools provided by the server, grouped by domain.
 
@@ -39,21 +39,28 @@ All MCP tools provided by the server, grouped by domain.
 | 29 | `create_variable_set` | [Catalog Admin](./catalog-admin.md) | Create a reusable variable set |
 | 30 | `attach_variable_set` | [Catalog Admin](./catalog-admin.md) | Attach a variable set to a catalog item |
 | 31 | `create_catalog_client_script` | [Catalog Admin](./catalog-admin.md) | Create a client-side script |
-| 32 | `create_catalog_ui_policy` | [Catalog Admin](./catalog-admin.md) | Create a UI policy |
-| 33 | `create_catalog_ui_policy_action` | [Catalog Admin](./catalog-admin.md) | Create a UI policy action |
-| 34 | `get_current_update_set` | [Update Sets](./update-sets.md) | Get the current update set |
-| 35 | `change_update_set` | [Update Sets](./update-sets.md) | Change the current update set |
-| 36 | `create_update_set` | [Update Sets](./update-sets.md) | Create a new update set |
-| 37 | `search_scheduled_jobs` | [Scheduled Jobs](./scheduled-jobs.md) | Search Scheduled Script Executions |
-| 38 | `get_scheduled_job` | [Scheduled Jobs](./scheduled-jobs.md) | Get a Scheduled Script Execution by sys_id |
-| 39 | `search_flow_executions` | [Flow Logs](./flow-logs.md) | Search Flow Designer execution history |
-| 40 | `get_flow_execution` | [Flow Logs](./flow-logs.md) | Get a flow execution + its step log by sys_id |
-| 41 | `search_cis` | [CMDB](./cmdb.md) | Search CMDB CIs by class, name, source, status, last-discovered |
-| 42 | `get_ci` | [CMDB](./cmdb.md) | Get full CI record by sys_id |
-| 43 | `get_ci_relationships` | [CMDB](./cmdb.md) | Read cmdb_rel_ci for a CI (parent_of / child_of) |
-| 44 | `count_cis_by_class` | [CMDB](./cmdb.md) | Aggregate CI counts per class (whole-CMDB shape) |
-| 45 | `find_stale_cis` | [CMDB](./cmdb.md) | Find migration-skip candidate CIs by staleness signal |
-| 46 | `get_ci_ticket_references` | [CMDB](./cmdb.md) | Count incident/change/problem refs to a CI |
+| 32 | `update_catalog_client_script` | [Catalog Admin](./catalog-admin.md) | Update an existing client-side script |
+| 33 | `create_catalog_ui_policy` | [Catalog Admin](./catalog-admin.md) | Create a UI policy |
+| 34 | `create_catalog_ui_policy_action` | [Catalog Admin](./catalog-admin.md) | Create a UI policy action |
+| 35 | `get_current_update_set` | [Update Sets](./update-sets.md) | Get the current update set |
+| 36 | `change_update_set` | [Update Sets](./update-sets.md) | Change the current update set |
+| 37 | `create_update_set` | [Update Sets](./update-sets.md) | Create a new update set |
+| 38 | `search_scheduled_jobs` | [Scheduled Jobs](./scheduled-jobs.md) | Search Scheduled Script Executions |
+| 39 | `get_scheduled_job` | [Scheduled Jobs](./scheduled-jobs.md) | Get a Scheduled Script Execution by sys_id |
+| 40 | `search_flow_executions` | [Flow Logs](./flow-logs.md) | Search Flow Designer execution history |
+| 41 | `get_flow_execution` | [Flow Logs](./flow-logs.md) | Get a flow execution + its step log by sys_id |
+| 42 | `search_cis` | [CMDB](./cmdb.md) | Search CMDB CIs by class, name, source, status, last-discovered |
+| 43 | `get_ci` | [CMDB](./cmdb.md) | Get full CI record by sys_id |
+| 44 | `get_ci_relationships` | [CMDB](./cmdb.md) | Read cmdb_rel_ci for a CI (parent_of / child_of) |
+| 45 | `count_cis_by_class` | [CMDB](./cmdb.md) | Aggregate CI counts per class (whole-CMDB shape) |
+| 46 | `find_stale_cis` | [CMDB](./cmdb.md) | Find migration-skip candidate CIs by staleness signal |
+| 47 | `get_ci_ticket_references` | [CMDB](./cmdb.md) | Count incident/change/problem refs to a CI |
+| 48 | `search_business_rules` | [Platform Metadata](./platform-metadata.md) | Search business rules (sys_script) by table, when, script body |
+| 49 | `get_business_rule` | [Platform Metadata](./platform-metadata.md) | Get a business rule + full script/condition by sys_id |
+| 50 | `get_list_view` | [Platform Metadata](./platform-metadata.md) | Read list view column layouts (sys_ui_list) + columns |
+| 51 | `search_navigator_modules` | [Platform Metadata](./platform-metadata.md) | Search nav modules (sys_app_module) — where list filters live |
+| 52 | `search_flow_definitions` | [Platform Metadata](./platform-metadata.md) | Search Flow Designer flow/subflow definitions |
+| 53 | `get_flow_definition` | [Platform Metadata](./platform-metadata.md) | Get a flow definition + triggers + ordered action steps |
 
 ## Common Patterns
 

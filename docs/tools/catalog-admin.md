@@ -1,6 +1,6 @@
 [docs](../README.md) / [tools](./README.md) / catalog-admin
 
-# Catalog Administration Tools (11)
+# Catalog Administration Tools (12)
 
 Tools for building and managing service catalog items, variables, choices, scripts, and UI policies.
 
