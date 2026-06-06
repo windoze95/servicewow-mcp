@@ -45,6 +45,31 @@ describe("paginateAll", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it("stops when fetched results reach totalCount exactly", async () => {
+    const fetcher = vi.fn();
+
+    fetcher.mockResolvedValueOnce({
+      results: [{ id: 1 }, { id: 2 }],
+      totalCount: 4,
+    });
+    fetcher.mockResolvedValueOnce({
+      results: [{ id: 3 }, { id: 4 }],
+      totalCount: 4,
+    });
+
+    const { results, totalCount, truncated } = await paginateAll(fetcher, {
+      limit: 2,
+      maxPages: 5,
+    });
+
+    expect(results).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]);
+    expect(totalCount).toBe(4);
+    expect(truncated).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenNthCalledWith(1, 2, 0);
+    expect(fetcher).toHaveBeenNthCalledWith(2, 2, 2);
+  });
+
   it("stops when results.length < limit", async () => {
     const fetcher = vi.fn();
 
