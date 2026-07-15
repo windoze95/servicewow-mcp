@@ -21,6 +21,9 @@ export interface Incident extends ServiceNowRecord {
   assignment_group: string;
   caller_id: string;
   cmdb_ci?: string;
+  active?: string;
+  major_incident_state?: string;
+  parent_incident?: string;
   opened_at: string;
   opened_by: string;
   resolved_at?: string;

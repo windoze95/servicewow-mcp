@@ -76,7 +76,7 @@ describe("registerIncidentTools", () => {
         sysparm_limit: 10,
         sysparm_offset: 0,
         sysparm_fields:
-          "sys_id,number,short_description,state,priority,impact,urgency,assigned_to,assignment_group,caller_id,category,opened_at,sys_updated_on",
+          "sys_id,number,short_description,state,priority,impact,urgency,major_incident_state,assigned_to,assignment_group,caller_id,category,subcategory,cmdb_ci,parent_incident,opened_at,resolved_at,sys_updated_on",
       },
     });
     expect(result.success).toBe(true);
@@ -227,8 +227,17 @@ describe("registerIncidentTools", () => {
       query: "VPN",
       state: "New",
       priority: "1",
+      impact: "2",
+      urgency: "3",
+      major_incident_state: "accepted",
+      category: "Network",
+      subcategory: "VPN",
+      caller: "Jane Smith",
+      assigned_to: "John Doe",
       assigned_to_me: true,
       assignment_group: "Network",
+      cmdb_ci: "VPN Gateway",
+      active: true,
       limit: 5,
       offset: 10,
     });
@@ -238,8 +247,174 @@ describe("registerIncidentTools", () => {
     expect(query).toContain("short_descriptionLIKEVPN");
     expect(query).toContain("state=New");
     expect(query).toContain("priority=1");
+    expect(query).toContain("impact=2");
+    expect(query).toContain("urgency=3");
+    expect(query).toContain("major_incident_state=accepted");
+    expect(query).toContain("category=Network");
+    expect(query).toContain("subcategory=VPN");
+    expect(query).toContain("caller_idLIKEJane Smith");
+    expect(query).toContain("assigned_toLIKEJohn Doe");
     expect(query).toContain(`assigned_to=${userSysId}`);
     expect(query).toContain("assignment_groupLIKENetwork");
+    expect(query).toContain("cmdb_ciLIKEVPN Gateway");
+    expect(query).toContain("active=true");
+  });
+
+  it("search_incidents normalizes major_incident_state casing and maps any/none", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_incidents({
+      major_incident_state: " Accepted ",
+      limit: 10,
+      offset: 0,
+    });
+    expect(snClient.get.mock.calls[0][1].params.sysparm_query).toContain(
+      "major_incident_state=accepted"
+    );
+
+    await handlers.search_incidents({
+      major_incident_state: "any",
+      limit: 10,
+      offset: 0,
+    });
+    expect(snClient.get.mock.calls[1][1].params.sysparm_query).toContain(
+      "major_incident_stateISNOTEMPTY"
+    );
+
+    await handlers.search_incidents({
+      major_incident_state: "None",
+      limit: 10,
+      offset: 0,
+    });
+    expect(snClient.get.mock.calls[2][1].params.sysparm_query).toContain(
+      "major_incident_stateISEMPTY"
+    );
+  });
+
+  it("search_incidents filters by parent_incident sys_id or number", async () => {
+    const { handlers, snClient } = setup();
+    const parentSysId = "0123456789abcdef0123456789abcdef";
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_incidents({
+      parent_incident: parentSysId,
+      limit: 10,
+      offset: 0,
+    });
+    expect(snClient.get.mock.calls[0][1].params.sysparm_query).toContain(
+      `parent_incident=${parentSysId}`
+    );
+
+    await handlers.search_incidents({
+      parent_incident: "INC0012345",
+      limit: 10,
+      offset: 0,
+    });
+    expect(snClient.get.mock.calls[1][1].params.sysparm_query).toContain(
+      "parent_incident.number=INC0012345"
+    );
+  });
+
+  it("search_incidents returns VALIDATION_ERROR for invalid parent_incident", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.search_incidents({
+      parent_incident: "not-a-ticket",
+      limit: 10,
+      offset: 0,
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(snClient.get).not.toHaveBeenCalled();
+  });
+
+  it("search_incidents includes active=false and omits active when undefined", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_incidents({ active: false, limit: 10, offset: 0 });
+    expect(snClient.get.mock.calls[0][1].params.sysparm_query).toContain(
+      "active=false"
+    );
+
+    await handlers.search_incidents({ limit: 10, offset: 0 });
+    expect(snClient.get.mock.calls[1][1].params.sysparm_query).not.toContain(
+      "active="
+    );
+  });
+
+  it("search_incidents normalizes opened_at and resolved_at date bounds", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_incidents({
+      opened_at_from: "2026-07-01",
+      opened_at_to: "2026-07-14",
+      resolved_at_from: "2026-07-02T08:30:00Z",
+      limit: 10,
+      offset: 0,
+    });
+
+    const query = snClient.get.mock.calls[0][1].params.sysparm_query;
+    expect(query).toContain("opened_at>=2026-07-01 00:00:00");
+    expect(query).toContain("opened_at<=2026-07-14 23:59:59");
+    expect(query).toContain("resolved_at>=2026-07-02 08:30:00");
+  });
+
+  it("search_incidents returns VALIDATION_ERROR for invalid date bounds", async () => {
+    const { handlers, snClient } = setup();
+
+    const result = (await handlers.search_incidents({
+      opened_at_from: "not-a-date",
+      limit: 10,
+      offset: 0,
+    })) as any;
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+    expect(result.error.message).toContain("opened_at_from");
+    expect(snClient.get).not.toHaveBeenCalled();
+  });
+
+  it("search_incidents escapes injection characters in new filters", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: { result: [] },
+      headers: { "x-total-count": "0" },
+    });
+
+    await handlers.search_incidents({
+      major_incident_state: "accepted^nqstate=7",
+      category: "help^nq",
+      caller: "smith,jones",
+      limit: 10,
+      offset: 0,
+    });
+
+    const query = snClient.get.mock.calls[0][1].params.sysparm_query;
+    expect(query).toContain("major_incident_state=accepted\\^nqstate=7");
+    expect(query).toContain("category=help\\^nq");
+    expect(query).toContain("caller_idLIKEsmith\\,jones");
+    expect(query).not.toMatch(/[^\\]\^nq/i);
   });
 
   it("search_incidents escapes encoded query injection characters in query", async () => {
