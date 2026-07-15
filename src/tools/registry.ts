@@ -44,6 +44,15 @@ export function buildRecordUrl(
   return `${instanceUrl}/${table}.do?sys_id=${sysId}`;
 }
 
+function isLogicalToolFailure(result: unknown): boolean {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "success" in result &&
+    (result as { success?: unknown }).success === false
+  );
+}
+
 export function registerAllTools(
   server: McpServer,
   config: Config,
@@ -102,7 +111,13 @@ export function registerAllTools(
           { userName: ctx.userName, duration },
           "Tool call completed"
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        const response = {
+          content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        };
+        if (isLogicalToolFailure(result)) {
+          return { ...response, isError: true };
+        }
+        return response;
       } catch (err: unknown) {
         const toolErr = (err as { toolError?: unknown })?.toolError;
         if (toolErr) {

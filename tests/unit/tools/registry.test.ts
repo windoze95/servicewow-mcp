@@ -309,6 +309,40 @@ describe("registerAllTools", () => {
     expect(mocks.handleToolError).not.toHaveBeenCalled();
   });
 
+  it("marks logical tool failures as MCP errors", async () => {
+    registerAllTools(
+      {} as any,
+      config as any,
+      {} as any,
+      tokenStore as any
+    );
+
+    const logicalFailure = {
+      success: false,
+      error: {
+        code: "NOT_FOUND",
+        message: "Incident not found",
+        reference_id: "ref-404",
+      },
+    };
+
+    const wrapped = capturedWrap(async () => logicalFailure);
+
+    const extra = {
+      authInfo: {
+        token: "mcp-token-123",
+        clientId: "client-1",
+        scopes: [] as string[],
+        extra: { userSysId: "abc123def456abc123def456abc12345" },
+      },
+    };
+
+    const response = await wrapped({} as Record<string, never>, extra);
+
+    expect(response.isError).toBe(true);
+    expect(JSON.parse(response.content[0].text)).toEqual(logicalFailure);
+  });
+
   it("normalizes unexpected errors using handleToolError", async () => {
     registerAllTools(
       {} as any,
