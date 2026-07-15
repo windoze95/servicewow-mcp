@@ -13,12 +13,24 @@ Search for incidents with various filters. Returns a paginated summary list.
 | `query` | string | No | Free-text search in short description |
 | `state` | string | No | Filter by state (e.g., `New`, `In Progress`, `Resolved`) |
 | `priority` | string | No | Filter by priority (`1`-`5`) |
+| `impact` | string | No | Filter by impact (`1`=High, `2`=Medium, `3`=Low) |
+| `urgency` | string | No | Filter by urgency (`1`=High, `2`=Medium, `3`=Low) |
+| `major_incident_state` | string | No | Filter by major incident state choice value (e.g., `proposed`, `accepted`, `rejected`, `canceled`); case-insensitive. `any` matches incidents with any major incident state set; `none` matches incidents never proposed as major |
+| `category` | string | No | Filter by category (exact choice value) |
+| `subcategory` | string | No | Filter by subcategory (exact choice value) |
+| `caller` | string | No | Filter by caller name (contains match) |
+| `assigned_to` | string | No | Filter by assignee name (contains match) |
 | `assigned_to_me` | boolean | No | Only show incidents assigned to the authenticated user |
 | `assignment_group` | string | No | Filter by assignment group name |
+| `cmdb_ci` | string | No | Filter by configuration item (matches CI name or sys_id) |
+| `parent_incident` | string | No | Filter by parent incident (INC number or sys_id), e.g. to list children of a major incident |
+| `active` | boolean | No | Filter by active flag (`true` = open, `false` = closed/canceled) |
+| `opened_at_from` / `opened_at_to` | string | No | Opened-at range (YYYY-MM-DD or ISO 8601, inclusive; date-only upper bounds treated as end-of-day UTC) |
+| `resolved_at_from` / `resolved_at_to` | string | No | Resolved-at range (YYYY-MM-DD or ISO 8601, inclusive; date-only upper bounds treated as end-of-day UTC) |
 | `limit` | number | No | Maximum results (1-100, default 10) |
 | `offset` | number | No | Result offset for pagination (default 0) |
 
-**Returns**: Array of incident summaries with `sys_id`, `number`, `short_description`, `state`, `priority`, `impact`, `urgency`, `assigned_to`, `assignment_group`, `caller_id`, `category`, `opened_at`, `sys_updated_on`, and `self_link`.
+**Returns**: Array of incident summaries with `sys_id`, `number`, `short_description`, `state`, `priority`, `impact`, `urgency`, `major_incident_state`, `assigned_to`, `assignment_group`, `caller_id`, `category`, `subcategory`, `cmdb_ci`, `parent_incident`, `opened_at`, `resolved_at`, `sys_updated_on`, and `self_link`.
 
 ## `get_incident`
 

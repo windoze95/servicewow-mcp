@@ -11,6 +11,7 @@ import {
   validateSysId,
   validateIncidentNumber,
   sanitizeUpdatePayload,
+  normalizeDateBoundary,
 } from "../utils/validators.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 
@@ -42,6 +43,36 @@ export function registerIncidentTools(
         .string()
         .optional()
         .describe("Filter by priority (1-5)"),
+      impact: z
+        .string()
+        .optional()
+        .describe("Filter by impact (1=High, 2=Medium, 3=Low)"),
+      urgency: z
+        .string()
+        .optional()
+        .describe("Filter by urgency (1=High, 2=Medium, 3=Low)"),
+      major_incident_state: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by major incident state (choice value, e.g. 'proposed', 'accepted', 'rejected', 'canceled'). Use 'any' for incidents with any major incident state set, or 'none' for incidents that were never proposed as major."
+        ),
+      category: z
+        .string()
+        .optional()
+        .describe("Filter by category (exact choice value)"),
+      subcategory: z
+        .string()
+        .optional()
+        .describe("Filter by subcategory (exact choice value)"),
+      caller: z
+        .string()
+        .optional()
+        .describe("Filter by caller name"),
+      assigned_to: z
+        .string()
+        .optional()
+        .describe("Filter by assignee name"),
       assigned_to_me: z
         .boolean()
         .optional()
@@ -51,6 +82,36 @@ export function registerIncidentTools(
         .string()
         .optional()
         .describe("Filter by assignment group name"),
+      cmdb_ci: z
+        .string()
+        .optional()
+        .describe("Filter by configuration item (matches CI name or sys_id)"),
+      parent_incident: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by parent incident (INC number or sys_id), e.g. to list children of a major incident"
+        ),
+      active: z
+        .boolean()
+        .optional()
+        .describe("Filter by active flag (true = open, false = closed/canceled)"),
+      opened_at_from: z
+        .string()
+        .optional()
+        .describe("Opened-at lower bound (YYYY-MM-DD or ISO 8601, inclusive)"),
+      opened_at_to: z
+        .string()
+        .optional()
+        .describe("Opened-at upper bound (YYYY-MM-DD or ISO 8601, inclusive; date-only treated as end-of-day UTC)"),
+      resolved_at_from: z
+        .string()
+        .optional()
+        .describe("Resolved-at lower bound (YYYY-MM-DD or ISO 8601, inclusive)"),
+      resolved_at_to: z
+        .string()
+        .optional()
+        .describe("Resolved-at upper bound (YYYY-MM-DD or ISO 8601, inclusive; date-only treated as end-of-day UTC)"),
       limit: z
         .number()
         .int()
@@ -67,8 +128,22 @@ export function registerIncidentTools(
           query?: string;
           state?: string;
           priority?: string;
+          impact?: string;
+          urgency?: string;
+          major_incident_state?: string;
+          category?: string;
+          subcategory?: string;
+          caller?: string;
+          assigned_to?: string;
           assigned_to_me?: boolean;
           assignment_group?: string;
+          cmdb_ci?: string;
+          parent_incident?: string;
+          active?: boolean;
+          opened_at_from?: string;
+          opened_at_to?: string;
+          resolved_at_from?: string;
+          resolved_at_to?: string;
           limit: number;
           offset: number;
         }
@@ -84,11 +159,84 @@ export function registerIncidentTools(
         if (args.priority) {
           queryParts.push(`priority=${sanitizeValue(args.priority)}`);
         }
+        if (args.impact) {
+          queryParts.push(`impact=${sanitizeValue(args.impact)}`);
+        }
+        if (args.urgency) {
+          queryParts.push(`urgency=${sanitizeValue(args.urgency)}`);
+        }
+        if (args.major_incident_state) {
+          // Choice values are stored lowercase (proposed, accepted, ...);
+          // normalize so display-cased input like "Accepted" still matches.
+          const mis = args.major_incident_state.trim().toLowerCase();
+          if (mis === "any") {
+            queryParts.push("major_incident_stateISNOTEMPTY");
+          } else if (mis === "none") {
+            queryParts.push("major_incident_stateISEMPTY");
+          } else {
+            queryParts.push(`major_incident_state=${sanitizeValue(mis)}`);
+          }
+        }
+        if (args.category) {
+          queryParts.push(`category=${sanitizeValue(args.category)}`);
+        }
+        if (args.subcategory) {
+          queryParts.push(`subcategory=${sanitizeValue(args.subcategory)}`);
+        }
+        if (args.caller) {
+          queryParts.push(`caller_idLIKE${sanitizeValue(args.caller)}`);
+        }
+        if (args.assigned_to) {
+          queryParts.push(`assigned_toLIKE${sanitizeValue(args.assigned_to)}`);
+        }
         if (args.assigned_to_me) {
           queryParts.push(`assigned_to=${ctx.userSysId}`);
         }
         if (args.assignment_group) {
           queryParts.push(`assignment_groupLIKE${sanitizeValue(args.assignment_group)}`);
+        }
+        if (args.cmdb_ci) {
+          queryParts.push(`cmdb_ciLIKE${sanitizeValue(args.cmdb_ci)}`);
+        }
+        if (args.parent_incident) {
+          if (validateSysId(args.parent_incident)) {
+            queryParts.push(`parent_incident=${args.parent_incident}`);
+          } else if (validateIncidentNumber(args.parent_incident)) {
+            queryParts.push(`parent_incident.number=${args.parent_incident}`);
+          } else {
+            return {
+              success: false,
+              error: {
+                code: "VALIDATION_ERROR",
+                message:
+                  "Invalid parent_incident. Provide an incident number (INC...) or a 32-character sys_id.",
+              },
+            };
+          }
+        }
+        if (args.active !== undefined) {
+          queryParts.push(`active=${args.active ? "true" : "false"}`);
+        }
+
+        const dateFilters: Array<[string, string | undefined, "from" | "to", string]> = [
+          ["opened_at", args.opened_at_from, "from", ">="],
+          ["opened_at", args.opened_at_to, "to", "<="],
+          ["resolved_at", args.resolved_at_from, "from", ">="],
+          ["resolved_at", args.resolved_at_to, "to", "<="],
+        ];
+        for (const [field, raw, boundary, op] of dateFilters) {
+          if (!raw) continue;
+          const normalized = normalizeDateBoundary(raw, boundary);
+          if (!normalized) {
+            return {
+              success: false,
+              error: {
+                code: "VALIDATION_ERROR",
+                message: `Invalid date for ${field}_${boundary}: ${raw}. Use YYYY-MM-DD or ISO 8601.`,
+              },
+            };
+          }
+          queryParts.push(`${field}${op}${sanitizeValue(normalized)}`);
         }
 
         queryParts.push("ORDERBYDESCsys_updated_on");
@@ -101,7 +249,7 @@ export function registerIncidentTools(
             sysparm_limit: args.limit,
             sysparm_offset: args.offset,
             sysparm_fields:
-              "sys_id,number,short_description,state,priority,impact,urgency,assigned_to,assignment_group,caller_id,category,opened_at,sys_updated_on",
+              "sys_id,number,short_description,state,priority,impact,urgency,major_incident_state,assigned_to,assignment_group,caller_id,category,subcategory,cmdb_ci,parent_incident,opened_at,resolved_at,sys_updated_on",
           },
         });
 
