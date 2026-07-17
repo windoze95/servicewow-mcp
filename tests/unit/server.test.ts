@@ -235,11 +235,14 @@ describe("createApp", () => {
     const metricsConfig = { ...baseConfig, METRICS_TOKEN: metricsToken };
 
     function redisWithUsageData() {
+      // days=1 → daily calls, daily errors, all-time calls, all-time errors
       const pipeline = {
         hgetall: vi.fn(),
         exec: vi.fn().mockResolvedValue([
           [null, { "lookup_user|john.doe": "3" }],
           [null, { "lookup_user|john.doe": "1" }],
+          [null, { "lookup_user|john.doe": "30" }],
+          [null, { "lookup_user|john.doe": "4" }],
         ]),
       };
       pipeline.hgetall.mockReturnValue(pipeline);
@@ -278,6 +281,8 @@ describe("createApp", () => {
       expect(response.body.totals).toEqual({ calls: 3, errors: 1 });
       expect(response.body.byTool.lookup_user).toEqual({ calls: 3, errors: 1 });
       expect(response.body.byUser["john.doe"]).toEqual({ calls: 3, errors: 1 });
+      expect(response.body.allTime.totals).toEqual({ calls: 30, errors: 4 });
+      expect(response.body.allTime.byTool.lookup_user).toEqual({ calls: 30, errors: 4 });
     });
 
     it("returns 500 when the summary query fails", async () => {

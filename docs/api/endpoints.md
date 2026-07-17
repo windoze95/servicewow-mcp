@@ -53,9 +53,17 @@ curl -s -H "Authorization: Bearer $METRICS_TOKEN" \
   "byTool": { "lookup_user": { "calls": 40, "errors": 1 } },
   "byUser": { "john.doe": { "calls": 80, "errors": 2 } },
   "byDay": { "2026-07-17": { "calls": 12, "errors": 0 } },
-  "byToolUser": { "lookup_user": { "john.doe": { "calls": 25, "errors": 1 } } }
+  "byToolUser": { "lookup_user": { "john.doe": { "calls": 25, "errors": 1 } } },
+  "allTime": {
+    "totals": { "calls": 900, "errors": 14 },
+    "byTool": { "lookup_user": { "calls": 300, "errors": 4 } },
+    "byUser": { "john.doe": { "calls": 610, "errors": 9 } },
+    "byToolUser": { "lookup_user": { "john.doe": { "calls": 210, "errors": 3 } } }
+  }
 }
 ```
+
+The windowed sections (`totals`, `byTool`, `byUser`, `byDay`, `byToolUser`) cover the requested `days` window and are limited by the 400-day per-day retention; `allTime` is cumulative since metrics were first deployed and never expires.
 
 **Response (401)** — missing or wrong bearer token. **Response (404)** — `METRICS_TOKEN` not configured.
 
