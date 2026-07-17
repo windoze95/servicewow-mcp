@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -14,13 +14,6 @@ import {
   normalizeDateBoundary,
 } from "../utils/validators.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 export function registerIncidentTools(
   server: McpServer,
@@ -121,7 +114,7 @@ export function registerIncidentTools(
         .describe("Maximum results"),
       offset: z.number().int().min(0).default(0).describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_incidents", 
       async (
         ctx: ToolContext,
         args: {
@@ -278,7 +271,7 @@ export function registerIncidentTools(
         .string()
         .describe("Incident number (e.g. INC0012345) or sys_id"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { identifier: string }) => {
+    wrapHandler("get_incident", async (ctx: ToolContext, args: { identifier: string }) => {
       let path: string;
       let params: Record<string, string | number | boolean> = {};
 
@@ -345,7 +338,7 @@ export function registerIncidentTools(
       assignment_group: z.string().optional().describe("Assignment group name or sys_id"),
       cmdb_ci: z.string().optional().describe("Configuration item name or sys_id"),
     },
-    wrapHandler(
+    wrapHandler("create_incident", 
       async (
         ctx: ToolContext,
         args: {
@@ -401,7 +394,7 @@ export function registerIncidentTools(
           "Fields to update (e.g. { state: 'In Progress', assignment_group: 'Network' })"
         ),
     },
-    wrapHandler(
+    wrapHandler("update_incident", 
       async (
         ctx: ToolContext,
         args: { identifier: string; fields: Record<string, unknown> }
@@ -469,7 +462,7 @@ export function registerIncidentTools(
         .default("work_note")
         .describe("work_note = internal, comment = customer-visible"),
     },
-    wrapHandler(
+    wrapHandler("add_work_note", 
       async (
         ctx: ToolContext,
         args: { identifier: string; note: string; type: "work_note" | "comment" }

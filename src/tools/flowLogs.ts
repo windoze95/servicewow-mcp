@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -8,13 +8,6 @@ import type {
 } from "../servicenow/types.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 import { validateSysId, normalizeDateBoundary } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 // Flow Designer execution history. Each `sys_flow_context` row is one run of a
 // flow, subflow, or action; the step-by-step engine output for that run lives
@@ -132,7 +125,7 @@ export function registerFlowLogTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_flow_executions", 
       async (
         ctx: ToolContext,
         args: {
@@ -275,7 +268,7 @@ export function registerFlowLogTools(
         .default(200)
         .describe("Maximum log entries to return (oldest first)"),
     },
-    wrapHandler(
+    wrapHandler("get_flow_execution", 
       async (
         ctx: ToolContext,
         args: {

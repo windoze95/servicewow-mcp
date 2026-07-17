@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -8,13 +8,6 @@ import type {
 } from "../servicenow/types.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 import { validateSysId } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 // Parent `sysauto` table backs the "Scheduled Jobs" list and is extended by
 // every subclass: sysauto_script, sysauto_template (record generators),
@@ -104,7 +97,7 @@ export function registerScheduledJobTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_scheduled_jobs", 
       async (
         ctx: ToolContext,
         args: {
@@ -216,7 +209,7 @@ export function registerScheduledJobTools(
         .string()
         .describe("Scheduled job sys_id (32 hex chars)"),
     },
-    wrapHandler(
+    wrapHandler("get_scheduled_job", 
       async (ctx: ToolContext, args: { sys_id: string }) => {
         if (!validateSysId(args.sys_id)) {
           return {

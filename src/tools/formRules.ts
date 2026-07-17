@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -8,13 +8,6 @@ import type {
 } from "../servicenow/types.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 import { validateSysId } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 // UI policies (sys_ui_policy) apply client-side field rules (mandatory / visible
 // / read-only / clear) when their `conditions` match. The per-field actions live
@@ -106,7 +99,7 @@ export function registerFormRulesTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_ui_policies", 
       async (
         ctx: ToolContext,
         args: {
@@ -172,7 +165,7 @@ export function registerFormRulesTools(
         .default(200)
         .describe("Maximum sys_ui_policy_action rows to return"),
     },
-    wrapHandler(
+    wrapHandler("get_ui_policy", 
       async (ctx: ToolContext, args: { sys_id: string; action_limit: number }) => {
         if (!validateSysId(args.sys_id)) {
           return {
@@ -267,7 +260,7 @@ export function registerFormRulesTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_client_scripts", 
       async (
         ctx: ToolContext,
         args: {
@@ -336,7 +329,7 @@ export function registerFormRulesTools(
     {
       sys_id: z.string().describe("Client script sys_id (32 hex chars)"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { sys_id: string }) => {
+    wrapHandler("get_client_script", async (ctx: ToolContext, args: { sys_id: string }) => {
       if (!validateSysId(args.sys_id)) {
         return {
           success: false,
@@ -395,7 +388,7 @@ export function registerFormRulesTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_data_policies", 
       async (
         ctx: ToolContext,
         args: {
@@ -465,7 +458,7 @@ export function registerFormRulesTools(
         .default(200)
         .describe("Maximum sys_data_policy_rule rows to return"),
     },
-    wrapHandler(
+    wrapHandler("get_data_policy", 
       async (ctx: ToolContext, args: { sys_id: string; rule_limit: number }) => {
         if (!validateSysId(args.sys_id)) {
           return {

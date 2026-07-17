@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -8,13 +8,6 @@ import type {
 } from "../servicenow/types.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 import { validateSysId, normalizeDateBoundary } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 // cmdb_ci is the parent CMDB table; every CI class (cmdb_ci_server,
 // cmdb_ci_db_instance, cmdb_ci_appl, …) extends it, so querying the parent
@@ -162,7 +155,7 @@ export function registerCmdbTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_cis", 
       async (
         ctx: ToolContext,
         args: {
@@ -262,7 +255,7 @@ export function registerCmdbTools(
         .string()
         .describe("Configuration item sys_id (32 hex chars)"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { sys_id: string }) => {
+    wrapHandler("get_ci", async (ctx: ToolContext, args: { sys_id: string }) => {
       if (!validateSysId(args.sys_id)) {
         return {
           success: false,
@@ -307,7 +300,7 @@ export function registerCmdbTools(
         .default(200)
         .describe("Maximum relationship rows per direction"),
     },
-    wrapHandler(
+    wrapHandler("get_ci_relationships", 
       async (
         ctx: ToolContext,
         args: { sys_id: string; limit: number }
@@ -379,7 +372,7 @@ export function registerCmdbTools(
     "count_cis_by_class",
     "Aggregate the entire CMDB by class via the ServiceNow Aggregate API (/api/now/stats/cmdb_ci grouped by sys_class_name with counts). One call returns the shape of the whole CMDB: a count per CI class sorted by count descending, plus the grand total and number of populated classes.",
     {},
-    wrapHandler(async (ctx: ToolContext) => {
+    wrapHandler("count_cis_by_class", async (ctx: ToolContext) => {
       const { data } = await ctx.snClient.get<{
         result: AggregateGroup[] | AggregateGroup;
       }>(`/api/now/stats/${CI_TABLE}`, {
@@ -469,7 +462,7 @@ export function registerCmdbTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("find_stale_cis", 
       async (
         ctx: ToolContext,
         args: {
@@ -565,7 +558,7 @@ export function registerCmdbTools(
           "Most-recent sample records to return per ticket type (0 = counts only)"
         ),
     },
-    wrapHandler(
+    wrapHandler("get_ci_ticket_references", 
       async (
         ctx: ToolContext,
         args: { sys_id: string; sample_limit: number }

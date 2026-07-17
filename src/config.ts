@@ -20,6 +20,11 @@ const configSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
   RATE_LIMIT_PER_USER: z.coerce.number().int().positive().default(60),
+  METRICS_TOKEN: z
+    .string()
+    .min(16, "METRICS_TOKEN must be at least 16 characters")
+    .optional()
+    .describe("Bearer token for the /metrics/usage endpoint; endpoint is disabled when unset"),
   TLS_CERT_PATH: z.string().optional(),
   TLS_KEY_PATH: z.string().optional(),
   ALLOWED_ORIGINS: z

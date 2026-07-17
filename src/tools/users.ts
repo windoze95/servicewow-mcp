@@ -1,13 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type { ServiceNowListResponse, ServiceNowSingleResponse, User, Group } from "../servicenow/types.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>;
 
 export function registerUserTools(
   server: McpServer,
@@ -21,7 +17,7 @@ export function registerUserTools(
       query: z.string().describe("Search term: name, email, or employee ID"),
       limit: z.number().int().min(1).max(50).default(10).describe("Maximum results to return"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { query: string; limit: number }) => {
+    wrapHandler("lookup_user", async (ctx: ToolContext, args: { query: string; limit: number }) => {
       const q = sanitizeValue(args.query);
 
       // Build OR query for name, email, employee_number
@@ -60,7 +56,7 @@ export function registerUserTools(
       query: z.string().describe("Group name to search for"),
       limit: z.number().int().min(1).max(50).default(10).describe("Maximum results to return"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { query: string; limit: number }) => {
+    wrapHandler("lookup_group", async (ctx: ToolContext, args: { query: string; limit: number }) => {
       const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Group>>(
         "/api/now/table/sys_user_group",
         {
@@ -91,7 +87,7 @@ export function registerUserTools(
     "get_my_profile",
     "Get the authenticated user's own ServiceNow profile information.",
     {},
-    wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
+    wrapHandler("get_my_profile", async (ctx: ToolContext, _args: Record<string, never>) => {
       const { data } = await ctx.snClient.get<ServiceNowSingleResponse<User>>(
         `/api/now/table/sys_user/${ctx.userSysId}`,
         {

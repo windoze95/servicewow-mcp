@@ -1,7 +1,7 @@
 import express, { type Request, type Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { Redis } from "ioredis";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -12,6 +12,7 @@ import { TokenStore } from "./auth/tokenStore.js";
 import { ServiceNowOAuthProvider } from "./auth/oauthProvider.js";
 import { createOAuthRouter } from "./auth/oauth.js";
 import { registerAllTools } from "./tools/registry.js";
+import { UsageMetrics, MAX_SUMMARY_DAYS } from "./metrics/usage.js";
 import { logger } from "./utils/logger.js";
 
 interface SessionEntry {
@@ -20,12 +21,20 @@ interface SessionEntry {
   createdAt: number;
 }
 
+function timingSafeEqualStrings(a: string, b: string): boolean {
+  // Hash both sides so inputs of different lengths still compare in constant time
+  const digestA = createHash("sha256").update(a).digest();
+  const digestB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(digestA, digestB);
+}
+
 export async function createApp(
   config: Config,
   redis: Redis
 ): Promise<express.Express> {
   const app = express();
   const tokenStore = new TokenStore(redis, config.TOKEN_ENCRYPTION_KEY);
+  const usageMetrics = new UsageMetrics(redis);
 
   // OAuth provider for MCP SDK auth
   const oauthProvider = new ServiceNowOAuthProvider(config, tokenStore);
@@ -66,6 +75,27 @@ export async function createApp(
     }
   });
 
+  // Usage metrics endpoint — enabled only when METRICS_TOKEN is configured
+  if (config.METRICS_TOKEN) {
+    const expectedAuth = `Bearer ${config.METRICS_TOKEN}`;
+    app.get("/metrics/usage", async (req: Request, res: Response) => {
+      if (!timingSafeEqualStrings(req.headers.authorization ?? "", expectedAuth)) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      const daysParam = Number(req.query.days);
+      const days = Number.isFinite(daysParam)
+        ? Math.min(Math.max(Math.trunc(daysParam), 1), MAX_SUMMARY_DAYS)
+        : 30;
+      try {
+        res.json(await usageMetrics.summary(days));
+      } catch (err) {
+        logger.error({ err }, "Failed to build usage metrics summary");
+        res.status(500).json({ error: "Failed to build usage metrics summary" });
+      }
+    });
+  }
+
   // MCP SDK OAuth routes (/.well-known/*, /authorize, /token, /register, /revoke)
   app.use(
     mcpAuthRouter({
@@ -101,7 +131,7 @@ export async function createApp(
     });
 
     // Register all tools
-    registerAllTools(server, config, redis, tokenStore);
+    registerAllTools(server, config, redis, tokenStore, usageMetrics);
 
     // Clean up on transport close
     transport.onclose = () => {

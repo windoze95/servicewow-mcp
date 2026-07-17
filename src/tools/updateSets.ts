@@ -1,16 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type { ServiceNowListResponse, ServiceNowSingleResponse } from "../servicenow/types.js";
 import { validateSysId } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 interface UpdateSetRecord {
   sys_id: string;
@@ -35,7 +28,7 @@ export function registerUpdateSetTools(
     "get_current_update_set",
     "Get the authenticated user's current ServiceNow update set.",
     {},
-    wrapHandler(async (ctx: ToolContext, _args: Record<string, never>) => {
+    wrapHandler("get_current_update_set", async (ctx: ToolContext, _args: Record<string, never>) => {
       const { data: preferenceData } = await ctx.snClient.get<
         ServiceNowListResponse<UserPreferenceRecord>
       >("/api/now/table/sys_user_preference", {
@@ -94,7 +87,7 @@ export function registerUpdateSetTools(
         .min(1)
         .describe("Update set sys_id or exact update set name"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { identifier: string }) => {
+    wrapHandler("change_update_set", async (ctx: ToolContext, args: { identifier: string }) => {
       const isSysId = validateSysId(args.identifier);
       const encodedQuery = isSysId
         ? `sys_id=${args.identifier}^state=in progress`
@@ -194,7 +187,7 @@ export function registerUpdateSetTools(
         .default(true)
         .describe("Set this as the current update set (default: true)"),
     },
-    wrapHandler(
+    wrapHandler("create_update_set", 
       async (
         ctx: ToolContext,
         args: { name: string; description?: string; set_as_current: boolean }

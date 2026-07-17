@@ -29,6 +29,40 @@ Returns server health status including Redis connectivity.
 
 ---
 
+## Usage Metrics
+
+### `GET /metrics/usage`
+
+Aggregated per-tool/per-user usage counters. Only registered when `METRICS_TOKEN` is set; requires that token as a bearer credential.
+
+**Query parameters**: `days` — window size in days ending today (default `30`, clamped to `1`–`400`).
+
+**Request**:
+```bash
+curl -s -H "Authorization: Bearer $METRICS_TOKEN" \
+  "https://your-mcp-host:8080/metrics/usage?days=30"
+```
+
+**Response (200)**:
+```json
+{
+  "days": 30,
+  "from": "2026-06-18",
+  "to": "2026-07-17",
+  "totals": { "calls": 120, "errors": 3 },
+  "byTool": { "lookup_user": { "calls": 40, "errors": 1 } },
+  "byUser": { "john.doe": { "calls": 80, "errors": 2 } },
+  "byDay": { "2026-07-17": { "calls": 12, "errors": 0 } },
+  "byToolUser": { "lookup_user": { "john.doe": { "calls": 25, "errors": 1 } } }
+}
+```
+
+**Response (401)** — missing or wrong bearer token. **Response (404)** — `METRICS_TOKEN` not configured.
+
+Counters live in Redis (see [Redis Schema](../architecture/redis-schema.md)), so they survive app redeploys; only calls that resolved an authenticated user are counted.
+
+---
+
 ## MCP-Spec OAuth
 
 The server implements MCP-spec OAuth 2.0 with PKCE. MCP clients discover endpoints automatically via `GET /.well-known/oauth-authorization-server`. The following endpoints are handled by the SDK's built-in middleware:

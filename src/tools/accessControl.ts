@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -8,13 +8,6 @@ import type {
 } from "../servicenow/types.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 import { validateSysId } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 // Access controls (sys_security_acl). `name` is the table (e.g. 'incident') or
 // table.field (e.g. 'incident.state'); `operation` is read/write/create/delete;
@@ -80,7 +73,7 @@ export function registerAccessControlTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_acls", 
       async (
         ctx: ToolContext,
         args: {
@@ -148,7 +141,7 @@ export function registerAccessControlTools(
         .default(200)
         .describe("Maximum sys_security_acl_role rows to return"),
     },
-    wrapHandler(
+    wrapHandler("get_acl", 
       async (ctx: ToolContext, args: { sys_id: string; role_limit: number }) => {
         if (!validateSysId(args.sys_id)) {
           return {

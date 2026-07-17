@@ -27,6 +27,8 @@ const mocks = vi.hoisted(() => ({
   createToolError: vi.fn(),
   handleToolError: vi.fn(),
   loggerInfo: vi.fn(),
+  loggerWarn: vi.fn(),
+  recordUsage: vi.fn(),
 }));
 
 vi.mock("../../../src/tools/users.js", () => ({
@@ -150,15 +152,19 @@ vi.mock("../../../src/middleware/errorHandler.js", () => ({
 vi.mock("../../../src/utils/logger.js", () => ({
   logger: {
     info: mocks.loggerInfo,
+    warn: mocks.loggerWarn,
+    debug: vi.fn(),
   },
 }));
 
 type WrapHandler = <T>(
+  toolName: string,
   handler: (ctx: ToolContext, args: T) => Promise<unknown>
 ) => (args: T, extra?: { authInfo?: { token: string; clientId: string; scopes: string[]; extra?: Record<string, unknown> } }) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>;
 
 describe("registerAllTools", () => {
   const tokenStore = {};
+  const usageMetrics = { record: mocks.recordUsage };
 
   const config = {
     RATE_LIMIT_PER_USER: 60,
@@ -230,16 +236,22 @@ describe("registerAllTools", () => {
       {} as any,
       config as any,
       {} as any,
-      tokenStore as any
+      tokenStore as any,
+      usageMetrics as any
     );
 
     const handler = vi.fn(async () => ({ success: true }));
-    const wrapped = capturedWrap(handler);
+    const wrapped = capturedWrap("test_tool", handler);
     const response = await wrapped({} as Record<string, never>);
 
     expect(handler).not.toHaveBeenCalled();
     expect(response.isError).toBe(true);
     expect(mocks.handleToolError).toHaveBeenCalled();
+    expect(mocks.recordUsage).not.toHaveBeenCalled();
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ toolName: "test_tool" }),
+      "Tool call failed"
+    );
   });
 
   it("resolves user from authInfo when bearer auth is present", async () => {
@@ -247,11 +259,12 @@ describe("registerAllTools", () => {
       {} as any,
       config as any,
       {} as any,
-      tokenStore as any
+      tokenStore as any,
+      usageMetrics as any
     );
 
     const handler = vi.fn(async (_ctx: ToolContext) => ({ success: true }));
-    const wrapped = capturedWrap(handler);
+    const wrapped = capturedWrap("test_tool", handler);
 
     const extra = {
       authInfo: {
@@ -268,6 +281,15 @@ describe("registerAllTools", () => {
     expect(response.isError).toBeUndefined();
     const parsed = JSON.parse(response.content[0].text);
     expect(parsed.success).toBe(true);
+    expect(mocks.loggerInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: "test_tool",
+        userName: "john.doe",
+        duration: expect.any(Number),
+      }),
+      "Tool call completed"
+    );
+    expect(mocks.recordUsage).toHaveBeenCalledWith("test_tool", "john.doe", true);
   });
 
   it("passes through known toolError payloads from handlers", async () => {
@@ -275,7 +297,8 @@ describe("registerAllTools", () => {
       {} as any,
       config as any,
       {} as any,
-      tokenStore as any
+      tokenStore as any,
+      usageMetrics as any
     );
 
     const knownToolError = {
@@ -287,7 +310,7 @@ describe("registerAllTools", () => {
       },
     };
 
-    const wrapped = capturedWrap(async () => {
+    const wrapped = capturedWrap("test_tool", async () => {
       throw Object.assign(new Error("Validation failed"), {
         toolError: knownToolError,
       });
@@ -314,11 +337,12 @@ describe("registerAllTools", () => {
       {} as any,
       config as any,
       {} as any,
-      tokenStore as any
+      tokenStore as any,
+      usageMetrics as any
     );
 
     const boom = new Error("Boom");
-    const wrapped = capturedWrap(async () => {
+    const wrapped = capturedWrap("test_tool", async () => {
       throw boom;
     });
 
@@ -343,6 +367,11 @@ describe("registerAllTools", () => {
       },
     });
     expect(mocks.handleToolError).toHaveBeenCalledWith(boom);
+    expect(mocks.recordUsage).toHaveBeenCalledWith("test_tool", "john.doe", false);
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ toolName: "test_tool", userName: "john.doe" }),
+      "Tool call failed"
+    );
   });
 });
 

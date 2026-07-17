@@ -28,6 +28,7 @@ Full configuration reference. All variables are validated at startup by Zod (`sr
 | `TLS_CERT_PATH` | — | Path to TLS certificate. Must pair with `TLS_KEY_PATH`. See [Native TLS](./native-tls.md). |
 | `TLS_KEY_PATH` | — | Path to TLS private key. Must pair with `TLS_CERT_PATH`. |
 | `CADDY_DOMAIN` | — | Domain for Caddy auto-TLS (used with `docker-compose.caddy.yml`). See [Docker (Caddy)](./docker-caddy.md). |
+| `METRICS_TOKEN` | — | Bearer token for `GET /metrics/usage`. The endpoint is disabled when unset. See [Endpoints](../api/endpoints.md). |
 
 ## Validation Rules
 
@@ -38,6 +39,7 @@ Full configuration reference. All variables are validated at startup by Zod (`sr
 - `MCP_PORT`, `RATE_LIMIT_PER_USER` must be positive integers
 - `MCP_SERVER_URL` must be a valid URL if set
 - `SN_CALLBACK_URI` must be a valid URL if set
+- `METRICS_TOKEN` must be at least 16 characters if set
 
 ## Example `.env`
 

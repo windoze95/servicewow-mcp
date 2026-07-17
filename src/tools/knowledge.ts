@@ -1,15 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import { validateSysId } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 export function registerKnowledgeTools(
   server: McpServer,
@@ -29,7 +22,7 @@ export function registerKnowledgeTools(
         .default(10)
         .describe("Maximum results"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { query: string; limit: number }) => {
+    wrapHandler("search_knowledge", async (ctx: ToolContext, args: { query: string; limit: number }) => {
       const { data, headers } = await ctx.snClient.get<{ result: unknown[] }>(
         "/api/sn_km/knowledge/articles",
         {
@@ -63,7 +56,7 @@ export function registerKnowledgeTools(
     {
       sys_id: z.string().describe("Knowledge article sys_id"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { sys_id: string }) => {
+    wrapHandler("get_article", async (ctx: ToolContext, args: { sys_id: string }) => {
       if (!validateSysId(args.sys_id)) {
         return {
           success: false,

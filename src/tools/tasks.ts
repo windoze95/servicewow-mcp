@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -10,13 +10,6 @@ import type {
 } from "../servicenow/types.js";
 import { validateSysId } from "../utils/validators.js";
 import { paginateAll } from "../servicenow/paginator.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 export function registerTaskTools(
   server: McpServer,
@@ -29,7 +22,7 @@ export function registerTaskTools(
     {
       offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { offset: number }) => {
+    wrapHandler("get_my_tasks", async (ctx: ToolContext, args: { offset: number }) => {
       const { results, totalCount, truncated } = await paginateAll<Task>(
         async (limit, offset) => {
           const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Task>>(
@@ -75,7 +68,7 @@ export function registerTaskTools(
     {
       offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { offset: number }) => {
+    wrapHandler("get_my_approvals", async (ctx: ToolContext, args: { offset: number }) => {
       const { results, totalCount, truncated } = await paginateAll<Approval>(
         async (limit, offset) => {
           const { data, headers } = await ctx.snClient.get<ServiceNowListResponse<Approval>>(
@@ -123,7 +116,7 @@ export function registerTaskTools(
       action: z.enum(["approved", "rejected"]).describe("Approve or reject"),
       comments: z.string().optional().describe("Comments for the approval decision"),
     },
-    wrapHandler(
+    wrapHandler("approve_or_reject", 
       async (
         ctx: ToolContext,
         args: { sys_id: string; action: "approved" | "rejected"; comments?: string }

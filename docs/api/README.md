@@ -2,13 +2,13 @@
 
 # HTTP API
 
-The server exposes 8 HTTP endpoints: a health check, OAuth routes, and the MCP transport endpoint.
+The server exposes 9 HTTP endpoints: a health check, an optional usage-metrics endpoint, OAuth routes, and the MCP transport endpoint.
 
 ## Section Index
 
 | Guide | Description |
 |---|---|
-| [Endpoints](./endpoints.md) | All 8 endpoints with request/response details |
+| [Endpoints](./endpoints.md) | All 9 endpoints with request/response details |
 | [Client Configuration](./client-configuration.md) | Claude Desktop JSON config examples |
 
 ## Overview
@@ -20,7 +20,7 @@ The server uses **Streamable HTTP** as its MCP transport. This means:
 - `DELETE /mcp` closes a session
 - Sessions are identified by the `Mcp-Session-Id` header
 
-All other endpoints (`/health`, `/oauth/*`) are standard REST.
+All other endpoints (`/health`, `/metrics/usage`, `/oauth/*`) are standard REST.
 
 ---
 

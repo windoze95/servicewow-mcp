@@ -1,15 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import { validateSysId } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 export function registerCatalogTools(
   server: McpServer,
@@ -29,7 +22,7 @@ export function registerCatalogTools(
         .default(10)
         .describe("Maximum results"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { query: string; limit: number }) => {
+    wrapHandler("search_catalog_items", async (ctx: ToolContext, args: { query: string; limit: number }) => {
       const { data } = await ctx.snClient.get<{
         result: unknown[];
       }>("/api/sn_sc/servicecatalog/items", {
@@ -61,7 +54,7 @@ export function registerCatalogTools(
     {
       sys_id: z.string().describe("Catalog item sys_id"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { sys_id: string }) => {
+    wrapHandler("get_catalog_item", async (ctx: ToolContext, args: { sys_id: string }) => {
       if (!validateSysId(args.sys_id)) {
         return {
           success: false,
@@ -98,7 +91,7 @@ export function registerCatalogTools(
         .describe("Form variable values as key-value pairs"),
       quantity: z.number().int().min(1).default(1).describe("Quantity to order"),
     },
-    wrapHandler(
+    wrapHandler("submit_catalog_request", 
       async (
         ctx: ToolContext,
         args: { sys_id: string; variables: Record<string, unknown>; quantity: number }
