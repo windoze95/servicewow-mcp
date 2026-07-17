@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -8,13 +8,6 @@ import type {
 } from "../servicenow/types.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
 import { validateSysId } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 // Business rules live on sys_script. `collection` is the table the rule runs on,
 // `when` is the execution phase (before/after/async/display), and the logic is in
@@ -273,7 +266,7 @@ export function registerPlatformMetadataTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_business_rules", 
       async (
         ctx: ToolContext,
         args: {
@@ -355,7 +348,7 @@ export function registerPlatformMetadataTools(
     {
       sys_id: z.string().describe("Business rule sys_id (32 hex chars)"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { sys_id: string }) => {
+    wrapHandler("get_business_rule", async (ctx: ToolContext, args: { sys_id: string }) => {
       if (!validateSysId(args.sys_id)) {
         return {
           success: false,
@@ -428,7 +421,7 @@ export function registerPlatformMetadataTools(
         .default(20)
         .describe("Maximum layouts to return when querying by `table`"),
     },
-    wrapHandler(
+    wrapHandler("get_list_view", 
       async (
         ctx: ToolContext,
         args: {
@@ -571,7 +564,7 @@ export function registerPlatformMetadataTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_navigator_modules", 
       async (
         ctx: ToolContext,
         args: {
@@ -651,7 +644,7 @@ export function registerPlatformMetadataTools(
         .default(0)
         .describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_flow_definitions", 
       async (
         ctx: ToolContext,
         args: {
@@ -723,7 +716,7 @@ export function registerPlatformMetadataTools(
         .default(200)
         .describe("Maximum trigger/action instance rows to return per type"),
     },
-    wrapHandler(
+    wrapHandler("get_flow_definition", 
       async (
         ctx: ToolContext,
         args: {
@@ -815,7 +808,7 @@ export function registerPlatformMetadataTools(
         .default(200)
         .describe("Maximum sys_variable_value input rows to return"),
     },
-    wrapHandler(
+    wrapHandler("get_flow_action_inputs", 
       async (ctx: ToolContext, args: { sys_id: string; limit: number }) => {
         if (!validateSysId(args.sys_id)) {
           return {

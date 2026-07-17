@@ -37,6 +37,7 @@ describe("registerCatalogTools", () => {
     };
 
     const wrapHandler = <T>(
+      _toolName: string,
       handler: (context: ToolContext, args: T) => Promise<unknown>
     ) => {
       return async (args: T) => handler(ctx, args);

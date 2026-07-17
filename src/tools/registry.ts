@@ -7,6 +7,7 @@ import { TokenRefresher, AuthRequiredError } from "../auth/tokenRefresh.js";
 import { RateLimiter } from "../middleware/rateLimiter.js";
 import { ServiceNowClient } from "../servicenow/client.js";
 import { handleToolError, createToolError } from "../middleware/errorHandler.js";
+import type { UsageMetrics } from "../metrics/usage.js";
 import { logger } from "../utils/logger.js";
 import { registerUserTools } from "./users.js";
 import { registerIncidentTools } from "./incidents.js";
@@ -36,6 +37,14 @@ export interface ToolContext {
   displayName: string;
 }
 
+export type WrapHandler = <T>(
+  toolName: string,
+  handler: (ctx: ToolContext, args: T) => Promise<unknown>
+) => (
+  args: T,
+  extra?: { authInfo?: AuthInfo }
+) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>;
+
 export function buildRecordUrl(
   instanceUrl: string,
   table: string,
@@ -48,7 +57,8 @@ export function registerAllTools(
   server: McpServer,
   config: Config,
   redis: Redis,
-  tokenStore: TokenStore
+  tokenStore: TokenStore,
+  usageMetrics: UsageMetrics
 ): void {
   const refresher = new TokenRefresher(config, tokenStore, redis);
   const rateLimiter = new RateLimiter(redis, config.RATE_LIMIT_PER_USER);
@@ -89,21 +99,33 @@ export function registerAllTools(
   };
 
   // Wrapper that catches errors and returns consistent error responses
-  const wrapHandler = <T>(
+  const wrapHandler: WrapHandler = <T>(
+    toolName: string,
     handler: (ctx: ToolContext, args: T) => Promise<unknown>
   ) => {
     return async (args: T, extra?: { authInfo?: AuthInfo }) => {
+      // Duration covers the whole call, including auth/token resolution
+      const startTime = Date.now();
+      let ctx: ToolContext | undefined;
       try {
-        const ctx = await getContext(extra);
-        const startTime = Date.now();
+        ctx = await getContext(extra);
         const result = await handler(ctx, args);
         const duration = Date.now() - startTime;
         logger.info(
-          { userName: ctx.userName, duration },
+          { toolName, userName: ctx.userName, duration },
           "Tool call completed"
         );
+        usageMetrics.record(toolName, ctx.userName, true);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (err: unknown) {
+        const duration = Date.now() - startTime;
+        logger.warn(
+          { toolName, userName: ctx?.userName, duration },
+          "Tool call failed"
+        );
+        if (ctx) {
+          usageMetrics.record(toolName, ctx.userName, false);
+        }
         const toolErr = (err as { toolError?: unknown })?.toolError;
         if (toolErr) {
           return { content: [{ type: "text" as const, text: JSON.stringify(toolErr, null, 2) }], isError: true };

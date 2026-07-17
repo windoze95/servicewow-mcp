@@ -36,6 +36,7 @@ Result: safer automation, cleaner compliance, fewer permission hacks.
 - Tool-level identity protections for sensitive operations
 - Per-user rate limiting via Redis token bucket
 - Input validation + normalized error responses
+- Per-tool/per-user usage metrics in Redis with an optional token-gated `/metrics/usage` endpoint
 - CI-enforced build + test + coverage gate
 
 ---

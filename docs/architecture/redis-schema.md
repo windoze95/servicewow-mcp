@@ -122,6 +122,17 @@ Long-lived refresh token for obtaining new MCP access tokens.
 | **Set by** | `ServiceNowOAuthProvider.exchangeAuthorizationCode()` |
 | **Read by** | `ServiceNowOAuthProvider.exchangeRefreshToken()` |
 
+### 10. `metrics:calls:<YYYY-MM-DD>` / `metrics:errors:<YYYY-MM-DD>` — Usage Counters
+
+Per-day (UTC) tool-usage counters. Hash fields are `<toolName>|<userName>`; values are call counts. `metrics:calls:*` counts successful calls, `metrics:errors:*` failed ones. Only calls that resolved an authenticated user context are recorded, and increments are fire-and-forget so metrics can never fail a tool call.
+
+| Field | Value |
+|---|---|
+| **Type** | Hash (`<toolName>\|<userName>` → count) |
+| **TTL** | 34,560,000 seconds (400 days), set on first increment |
+| **Set by** | `UsageMetrics.record()` (called from the tool `wrapHandler`) |
+| **Read by** | `UsageMetrics.summary()` (`GET /metrics/usage`) |
+
 ## Summary Table
 
 | Key Pattern | Type | TTL | Purpose |
@@ -135,6 +146,8 @@ Long-lived refresh token for obtaining new MCP access tokens.
 | `auth_code:<code>` | String (JSON) | 5 min | MCP authorization codes |
 | `mcp_token:<token>` | String (JSON) | 1 hour | MCP access tokens |
 | `mcp_refresh:<token>` | String (JSON) | 30 days | MCP refresh tokens |
+| `metrics:calls:<date>` | Hash | 400 days | Successful tool calls per tool/user/day |
+| `metrics:errors:<date>` | Hash | 400 days | Failed tool calls per tool/user/day |
 
 ---
 

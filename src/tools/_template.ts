@@ -11,14 +11,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
+import type { ToolContext, WrapHandler } from "./registry.js";
 
 export function registerMyDomainTools(
   server: McpServer,
@@ -32,7 +25,7 @@ export function registerMyDomainTools(
       param1: z.string().describe("Description of param1"),
       param2: z.number().optional().describe("Optional numeric parameter"),
     },
-    wrapHandler(
+    wrapHandler("my_tool_name", 
       async (ctx: ToolContext, args: { param1: string; param2?: number }) => {
         // ctx.snClient is already authenticated as the calling user
         // ctx.userSysId, ctx.userName, ctx.displayName are available

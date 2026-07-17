@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowListResponse,
@@ -31,13 +31,6 @@ const ORDER_BY_MAP: Record<string, string> = {
 };
 
 const ORDER_BY_KEYS = Object.keys(ORDER_BY_MAP) as [string, ...string[]];
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 async function resolveChangeRequestSysId(
   ctx: ToolContext,
@@ -168,7 +161,7 @@ export function registerChangeRequestTools(
         .describe("Maximum results"),
       offset: z.number().int().min(0).default(0).describe("Result offset for pagination"),
     },
-    wrapHandler(
+    wrapHandler("search_change_requests", 
       async (
         ctx: ToolContext,
         args: {
@@ -286,7 +279,7 @@ export function registerChangeRequestTools(
         .string()
         .describe("Change number (e.g. CHG0012345) or sys_id"),
     },
-    wrapHandler(async (ctx: ToolContext, args: { identifier: string }) => {
+    wrapHandler("get_change_request", async (ctx: ToolContext, args: { identifier: string }) => {
       let path: string;
       let params: Record<string, string | number | boolean> = {};
 
@@ -355,7 +348,7 @@ export function registerChangeRequestTools(
       start_date: z.string().optional().describe("Planned start date (ISO 8601)"),
       end_date: z.string().optional().describe("Planned end date (ISO 8601)"),
     },
-    wrapHandler(
+    wrapHandler("create_change_request", 
       async (
         ctx: ToolContext,
         args: {
@@ -415,7 +408,7 @@ export function registerChangeRequestTools(
           "Fields to update (e.g. { state: 'Implement', assignment_group: 'CAB' })"
         ),
     },
-    wrapHandler(
+    wrapHandler("update_change_request", 
       async (
         ctx: ToolContext,
         args: { identifier: string; fields: Record<string, unknown> }
@@ -448,7 +441,7 @@ export function registerChangeRequestTools(
       identifier: z.string().describe("Change number (CHG...) or sys_id"),
       offset: z.number().int().min(0).default(0).describe("Starting offset for continuation when previous response was truncated"),
     },
-    wrapHandler(
+    wrapHandler("get_change_request_approvals", 
       async (ctx: ToolContext, args: { identifier: string; offset: number }) => {
         const resolved = await resolveChangeRequestSysId(ctx, args.identifier);
         if ("error" in resolved) return resolved.error;
@@ -504,7 +497,7 @@ export function registerChangeRequestTools(
         .default("work_note")
         .describe("work_note = internal, comment = customer-visible"),
     },
-    wrapHandler(
+    wrapHandler("add_change_request_work_note", 
       async (
         ctx: ToolContext,
         args: { identifier: string; note: string; type: "work_note" | "comment" }

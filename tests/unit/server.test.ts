@@ -229,4 +229,73 @@ describe("createApp", () => {
     expect(transport.close).toHaveBeenCalledTimes(1);
     await request(app).get("/mcp").set("mcp-session-id", sessionId).expect(400);
   });
+
+  describe("GET /metrics/usage", () => {
+    const metricsToken = "metrics-secret-token-123";
+    const metricsConfig = { ...baseConfig, METRICS_TOKEN: metricsToken };
+
+    function redisWithUsageData() {
+      const pipeline = {
+        hgetall: vi.fn(),
+        exec: vi.fn().mockResolvedValue([
+          [null, { "lookup_user|john.doe": "3" }],
+          [null, { "lookup_user|john.doe": "1" }],
+        ]),
+      };
+      pipeline.hgetall.mockReturnValue(pipeline);
+      return {
+        ping: vi.fn().mockResolvedValue("PONG"),
+        pipeline: vi.fn(() => pipeline),
+      };
+    }
+
+    it("is not registered when METRICS_TOKEN is unset", async () => {
+      const redis = { ping: vi.fn().mockResolvedValue("PONG") };
+      const app = await createApp(baseConfig as any, redis as any);
+
+      await request(app).get("/metrics/usage").expect(404);
+    });
+
+    it("rejects requests without a valid bearer token", async () => {
+      const app = await createApp(metricsConfig as any, redisWithUsageData() as any);
+
+      await request(app).get("/metrics/usage").expect(401);
+      await request(app)
+        .get("/metrics/usage")
+        .set("Authorization", "Bearer wrong-token")
+        .expect(401);
+    });
+
+    it("returns the aggregated usage summary for a valid token", async () => {
+      const app = await createApp(metricsConfig as any, redisWithUsageData() as any);
+
+      const response = await request(app)
+        .get("/metrics/usage?days=1")
+        .set("Authorization", `Bearer ${metricsToken}`)
+        .expect(200);
+
+      expect(response.body.days).toBe(1);
+      expect(response.body.totals).toEqual({ calls: 3, errors: 1 });
+      expect(response.body.byTool.lookup_user).toEqual({ calls: 3, errors: 1 });
+      expect(response.body.byUser["john.doe"]).toEqual({ calls: 3, errors: 1 });
+    });
+
+    it("returns 500 when the summary query fails", async () => {
+      const pipeline = {
+        hgetall: vi.fn(),
+        exec: vi.fn().mockRejectedValue(new Error("redis down")),
+      };
+      pipeline.hgetall.mockReturnValue(pipeline);
+      const redis = {
+        ping: vi.fn().mockResolvedValue("PONG"),
+        pipeline: vi.fn(() => pipeline),
+      };
+      const app = await createApp(metricsConfig as any, redis as any);
+
+      await request(app)
+        .get("/metrics/usage")
+        .set("Authorization", `Bearer ${metricsToken}`)
+        .expect(500);
+    });
+  });
 });

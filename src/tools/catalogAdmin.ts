@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ToolContext } from "./registry.js";
+import type { ToolContext, WrapHandler } from "./registry.js";
 import { buildRecordUrl } from "./registry.js";
 import type {
   ServiceNowSingleResponse,
@@ -15,13 +15,6 @@ import type {
   CatalogItem,
 } from "../servicenow/types.js";
 import { validateSysId, validateIOVariable, sanitizeUpdatePayload } from "../utils/validators.js";
-
-type WrapHandler = <T>(
-  handler: (ctx: ToolContext, args: T) => Promise<unknown>
-) => (args: T) => Promise<{
-  content: { type: "text"; text: string }[];
-  isError?: boolean;
-}>;
 
 const VARIABLE_TYPE_MAP: Record<string, number> = {
   yes_no: 1,
@@ -92,7 +85,7 @@ export function registerCatalogAdminTools(
       no_quantity: z.boolean().optional().describe("Hide quantity selector"),
       workflow: z.string().optional().describe("Workflow sys_id"),
     },
-    wrapHandler(
+    wrapHandler("create_catalog_item", 
       async (
         ctx: ToolContext,
         args: {
@@ -153,7 +146,7 @@ export function registerCatalogAdminTools(
         .record(z.unknown())
         .describe("Fields to update (e.g. { active: false })"),
     },
-    wrapHandler(
+    wrapHandler("update_catalog_item", 
       async (
         ctx: ToolContext,
         args: { sys_id: string; fields: Record<string, unknown> }
@@ -216,7 +209,7 @@ export function registerCatalogAdminTools(
       attributes: z.string().optional().describe("Widget attributes (e.g. max_length=4)"),
       validate_regex: z.string().optional().describe("Regex validation — sys_id or name of a question_regex record (e.g. 'number')"),
     },
-    wrapHandler(
+    wrapHandler("create_catalog_variable", 
       async (
         ctx: ToolContext,
         args: {
@@ -296,7 +289,7 @@ export function registerCatalogAdminTools(
         .record(z.unknown())
         .describe("Fields to update"),
     },
-    wrapHandler(
+    wrapHandler("update_catalog_variable", 
       async (
         ctx: ToolContext,
         args: { sys_id: string; fields: Record<string, unknown> }
@@ -352,7 +345,7 @@ export function registerCatalogAdminTools(
         .default(50)
         .describe("Maximum results"),
     },
-    wrapHandler(
+    wrapHandler("list_catalog_variables", 
       async (
         ctx: ToolContext,
         args: {
@@ -475,7 +468,7 @@ export function registerCatalogAdminTools(
       value: z.string().min(1).describe("Stored value"),
       order: z.number().int().optional().describe("Display order"),
     },
-    wrapHandler(
+    wrapHandler("create_variable_choice", 
       async (
         ctx: ToolContext,
         args: {
@@ -537,7 +530,7 @@ export function registerCatalogAdminTools(
       description: z.string().optional().describe("Description"),
       order: z.number().int().optional().describe("Display order"),
     },
-    wrapHandler(
+    wrapHandler("create_variable_set", 
       async (
         ctx: ToolContext,
         args: {
@@ -587,7 +580,7 @@ export function registerCatalogAdminTools(
       variable_set: z.string().describe("Variable set sys_id"),
       order: z.number().int().optional().describe("Display order"),
     },
-    wrapHandler(
+    wrapHandler("attach_variable_set", 
       async (
         ctx: ToolContext,
         args: {
@@ -683,7 +676,7 @@ export function registerCatalogAdminTools(
         .optional()
         .describe("Applies on requested items (default false)"),
     },
-    wrapHandler(
+    wrapHandler("create_catalog_client_script", 
       async (
         ctx: ToolContext,
         args: {
@@ -817,7 +810,7 @@ export function registerCatalogAdminTools(
         .record(z.unknown())
         .describe("Fields to update (e.g. { active: false })"),
     },
-    wrapHandler(
+    wrapHandler("update_catalog_client_script", 
       async (
         ctx: ToolContext,
         args: { sys_id: string; fields: Record<string, unknown> }
@@ -900,7 +893,7 @@ export function registerCatalogAdminTools(
         .describe("JavaScript when condition false"),
       active: z.boolean().optional().describe("Active (default true)"),
     },
-    wrapHandler(
+    wrapHandler("create_catalog_ui_policy", 
       async (
         ctx: ToolContext,
         args: {
@@ -1032,7 +1025,7 @@ export function registerCatalogAdminTools(
         .optional()
         .describe("Clear value when hidden (default false)"),
     },
-    wrapHandler(
+    wrapHandler("create_catalog_ui_policy_action", 
       async (
         ctx: ToolContext,
         args: {
