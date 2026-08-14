@@ -82,7 +82,31 @@ export function registerAllTools(
   usageMetrics: UsageMetrics
 ): void {
   const refresher = new TokenRefresher(config, tokenStore, redis);
-  const rateLimiter = new RateLimiter(redis, config.RATE_LIMIT_PER_USER);
+  // Exemptions are validated to sys_id shape so a typo'd entry is surfaced at
+  // startup instead of silently never matching.
+  const exemptUsers = (config.RATE_LIMIT_EXEMPT_USERS ?? "")
+    .split(",")
+    .map((u) => u.trim())
+    .filter((u) => u.length > 0);
+  const invalidExempt = exemptUsers.filter((u) => !/^[0-9a-fA-F]{32}$/.test(u));
+  if (invalidExempt.length > 0) {
+    logger.warn(
+      { invalidExempt },
+      "RATE_LIMIT_EXEMPT_USERS entries that are not 32-char sys_ids are ignored"
+    );
+  }
+  const validExempt = exemptUsers.filter((u) => /^[0-9a-fA-F]{32}$/.test(u));
+  if (validExempt.length > 0) {
+    logger.info(
+      { count: validExempt.length },
+      "Rate limit exemptions configured"
+    );
+  }
+  const rateLimiter = new RateLimiter(
+    redis,
+    config.RATE_LIMIT_PER_USER,
+    validExempt
+  );
 
   const getContext = async (extra?: { authInfo?: AuthInfo }): Promise<ToolContext> => {
     // Resolve user from bearer token (set by requireBearerAuth middleware)

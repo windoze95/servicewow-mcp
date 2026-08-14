@@ -37,12 +37,22 @@ end
 `;
 
 export class RateLimiter {
+  private exemptUsers: Set<string>;
+
   constructor(
     private redis: Redis,
-    private capacity: number
-  ) {}
+    private capacity: number,
+    exemptUsers: string[] = []
+  ) {
+    // sys_ids are hex; normalize case so an env-var entry can't miss on casing
+    this.exemptUsers = new Set(exemptUsers.map((u) => u.toLowerCase()));
+  }
 
   async checkLimit(userSysId: string): Promise<boolean> {
+    if (this.exemptUsers.has(userSysId.toLowerCase())) {
+      return true;
+    }
+
     const key = `ratelimit:${userSysId}`;
     const now = Math.floor(Date.now() / 1000);
 
