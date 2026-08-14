@@ -837,4 +837,306 @@ describe("registerPlatformMetadataTools", () => {
     // the variable-value rows are still returned even when the instance is absent
     expect(result.data.input_values).toHaveLength(1);
   });
+
+  it("search_notifications builds query from name, event_name, table, and active", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: {
+        result: [
+          {
+            sys_id: "aaaa000047457e98718d8a12736d43d0",
+            name: "On-Call Reminder",
+            event_name: "rota.on_call.reminder",
+            collection: "cmn_rota",
+            active: "true",
+          },
+        ],
+      },
+      headers: { "x-total-count": "1" },
+    });
+
+    const result = (await handlers.search_notifications({
+      name: "Reminder",
+      event_name: "rota.on_call",
+      table: "cmn_rota",
+      active: true,
+      limit: 20,
+      offset: 0,
+    })) as {
+      success: boolean;
+      data: { self_link: string }[];
+      metadata: { total_count: number };
+    };
+
+    expect(snClient.get).toHaveBeenCalledWith(
+      "/api/now/table/sysevent_email_action",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          sysparm_query:
+            "nameLIKEReminder^event_nameLIKErota.on_call^collection=cmn_rota^active=true^ORDERBYDESCsys_updated_on",
+          sysparm_limit: 20,
+          sysparm_offset: 0,
+        }),
+      })
+    );
+    expect(result.success).toBe(true);
+    expect(result.data[0].self_link).toBe(
+      "https://example.service-now.com/sysevent_email_action.do?sys_id=aaaa000047457e98718d8a12736d43d0"
+    );
+    expect(result.metadata.total_count).toBe(1);
+  });
+
+  it("get_notification returns the full record with a self_link", async () => {
+    const { handlers, snClient } = setup();
+    const sysId = "bbbb000047457e98718d8a12736d43d0";
+
+    snClient.get.mockResolvedValue({
+      data: {
+        result: {
+          // display=all wraps every field — including sys_id — in
+          // {value, display_value}; the self_link must use the raw value.
+          sys_id: { value: sysId, display_value: sysId },
+          name: { value: "On-Call Reminder", display_value: "On-Call Reminder" },
+          recipient_users: {
+            value: "aaaa10b447457e98718d8a12736d43d0",
+            display_value: "John Doe",
+          },
+        },
+      },
+      headers: {},
+    });
+
+    const result = (await handlers.get_notification({
+      sys_id: sysId,
+    })) as { success: boolean; data: { self_link: string } };
+
+    expect(snClient.get).toHaveBeenCalledWith(
+      `/api/now/table/sysevent_email_action/${sysId}`,
+      expect.objectContaining({
+        params: expect.objectContaining({ sysparm_display_value: "all" }),
+      })
+    );
+    expect(result.success).toBe(true);
+    expect(result.data.self_link).toBe(
+      `https://example.service-now.com/sysevent_email_action.do?sys_id=${sysId}`
+    );
+  });
+
+  it("get_notification rejects an invalid sys_id", async () => {
+    const { handlers } = setup();
+
+    const result = (await handlers.get_notification({
+      sys_id: "not-a-sys-id",
+    })) as { success: boolean; error: { code: string } };
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("search_workflows builds query from name and table", async () => {
+    const { handlers, snClient } = setup();
+
+    snClient.get.mockResolvedValue({
+      data: {
+        result: [
+          {
+            sys_id: "aaaa111147457e98718d8a12736d43d0",
+            name: "Assign by Acknowledgement",
+            table: "incident",
+          },
+        ],
+      },
+      headers: { "x-total-count": "1" },
+    });
+
+    const result = (await handlers.search_workflows({
+      name: "Acknowledgement",
+      table: "incident",
+      limit: 20,
+      offset: 0,
+    })) as {
+      success: boolean;
+      data: { self_link: string }[];
+      metadata: { total_count: number };
+    };
+
+    expect(snClient.get).toHaveBeenCalledWith(
+      "/api/now/table/wf_workflow",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          sysparm_query:
+            "nameLIKEAcknowledgement^table=incident^ORDERBYDESCsys_updated_on",
+          sysparm_limit: 20,
+          sysparm_offset: 0,
+        }),
+      })
+    );
+    expect(result.success).toBe(true);
+    expect(result.data[0].self_link).toBe(
+      "https://example.service-now.com/wf_workflow.do?sys_id=aaaa111147457e98718d8a12736d43d0"
+    );
+    expect(result.metadata.total_count).toBe(1);
+  });
+
+  it("get_workflow expands the published version's activities and transitions", async () => {
+    const { handlers, snClient } = setup();
+    const wfId = "bbbb111147457e98718d8a12736d43d0";
+    const versionId = "cccc111147457e98718d8a12736d43d0";
+
+    snClient.get.mockImplementation(async (path: string) => {
+      if (path === `/api/now/table/wf_workflow/${wfId}`) {
+        return {
+          data: {
+            result: {
+              sys_id: { value: wfId, display_value: wfId },
+              name: { value: "Pager Parent", display_value: "Pager Parent" },
+            },
+          },
+          headers: {},
+        };
+      }
+      if (path === "/api/now/table/wf_workflow_version") {
+        return {
+          data: {
+            result: [
+              {
+                sys_id: { value: versionId, display_value: versionId },
+                published: { value: "true", display_value: "true" },
+              },
+            ],
+          },
+          headers: { "x-total-count": "1" },
+        };
+      }
+      if (path === "/api/now/table/wf_activity") {
+        return {
+          data: {
+            result: [
+              {
+                sys_id: { value: "dddd111147457e98718d8a12736d43d0" },
+                name: { value: "Notify Voice Call" },
+              },
+            ],
+          },
+          headers: { "x-total-count": "1" },
+        };
+      }
+      if (path === "/api/now/table/wf_transition") {
+        return {
+          data: {
+            result: [
+              {
+                sys_id: { value: "eeee111147457e98718d8a12736d43d0" },
+                from: { value: "dddd111147457e98718d8a12736d43d0" },
+                to: { value: "ffff111147457e98718d8a12736d43d0" },
+              },
+            ],
+          },
+          headers: { "x-total-count": "1" },
+        };
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    const result = (await handlers.get_workflow({
+      sys_id: wfId,
+      activity_limit: 200,
+    })) as {
+      success: boolean;
+      data: {
+        workflow: { self_link: string };
+        versions: unknown[];
+        activities: { self_link: string }[];
+        transitions: unknown[];
+        metadata: { expanded_version: string | null };
+      };
+    };
+
+    expect(snClient.get).toHaveBeenCalledWith(
+      "/api/now/table/wf_workflow_version",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          sysparm_query: `workflow=${wfId}^ORDERBYDESCpublished^ORDERBYDESCsys_updated_on`,
+          sysparm_display_value: "all",
+        }),
+      })
+    );
+    expect(snClient.get).toHaveBeenCalledWith(
+      "/api/now/table/wf_activity",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          sysparm_query: `workflow_version=${versionId}^ORDERBYname`,
+        }),
+      })
+    );
+    expect(snClient.get).toHaveBeenCalledWith(
+      "/api/now/table/wf_transition",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          sysparm_query: `from.workflow_version=${versionId}`,
+        }),
+      })
+    );
+    expect(result.success).toBe(true);
+    expect(result.data.metadata.expanded_version).toBe(versionId);
+    expect(result.data.activities[0].self_link).toBe(
+      "https://example.service-now.com/wf_activity.do?sys_id=dddd111147457e98718d8a12736d43d0"
+    );
+    expect(result.data.transitions).toHaveLength(1);
+  });
+
+  it("get_workflow returns empty components when no versions exist", async () => {
+    const { handlers, snClient } = setup();
+    const wfId = "bbbb222247457e98718d8a12736d43d0";
+
+    snClient.get.mockImplementation(async (path: string) => {
+      if (path === `/api/now/table/wf_workflow/${wfId}`) {
+        return {
+          data: { result: { sys_id: { value: wfId } } },
+          headers: {},
+        };
+      }
+      if (path === "/api/now/table/wf_workflow_version") {
+        return {
+          data: { result: [] },
+          headers: { "x-total-count": "0" },
+        };
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    const result = (await handlers.get_workflow({
+      sys_id: wfId,
+      activity_limit: 200,
+    })) as {
+      success: boolean;
+      data: {
+        versions: unknown[];
+        activities: unknown[];
+        transitions: unknown[];
+        metadata: { expanded_version: string | null };
+      };
+    };
+
+    expect(result.success).toBe(true);
+    expect(result.data.versions).toEqual([]);
+    expect(result.data.activities).toEqual([]);
+    expect(result.data.transitions).toEqual([]);
+    expect(result.data.metadata.expanded_version).toBeNull();
+    // only the header + version lookup should have run
+    expect(snClient.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("get_workflow rejects an invalid sys_id", async () => {
+    const { handlers } = setup();
+
+    const result = (await handlers.get_workflow({
+      sys_id: "nope",
+      activity_limit: 200,
+    })) as { success: boolean; error: { code: string } };
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("VALIDATION_ERROR");
+  });
 });

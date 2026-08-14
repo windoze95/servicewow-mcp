@@ -1,13 +1,15 @@
 [docs](../README.md) / [tools](./README.md) / platform-metadata
 
-# Platform Metadata Tools (7)
+# Platform Metadata Tools (11)
 
-Read-only tools for inspecting **platform configuration** — the business rules, list views, navigator modules, and flow definitions that drive record and UI behaviour. These answer questions like "what sets this field?" and "what filters this list?" without UI access.
+Read-only tools for inspecting **platform configuration** — the business rules, list views, navigator modules, flow definitions, and notifications that drive record and UI behaviour. These answer questions like "what sets this field?" and "what filters this list?" without UI access.
 
 - `sys_script` — business rules (server-side automation)
 - `sys_ui_list` / `sys_ui_list_element` — list view column layouts and their columns
 - `sys_app_module` — application navigator modules (where a list's row **filter** lives)
 - `sys_hub_flow` plus `sys_hub_trigger_instance` / `sys_hub_action_instance` — Flow Designer flow definitions and their triggers/steps
+- `sysevent_email_action` — email/notification definitions (what an event sends, and to whom)
+- `wf_workflow` / `wf_workflow_version` / `wf_activity` / `wf_transition` — classic Workflow definitions and their activity graphs
 
 All access goes through the per-user ServiceNow client, so the caller's ACLs govern whether these configuration tables are readable. `self_link` is built for every returned record.
 
@@ -116,6 +118,55 @@ Expand the configured **input values** of one Flow Designer action instance (`sy
 
 > Reads **both** storage models so it works regardless of release. The V2 `values` field can be an encoded blob; the `sys_variable_value` rows are the human-readable form. Only a genuine missing-table / missing-record (400/404) is tolerated when probing base vs. v2 — ACL, rate-limit, and server errors surface normally.
 
+## `search_notifications`
+
+Search email/notification definitions (`sysevent_email_action`) — the records under **System Notification → Email → Notifications**. Use to find what an event sends (e.g. all `rota.on_call.*` reminders/escalations) or every notification on a table.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | No | Notification name LIKE filter |
+| `event_name` | string | No | Firing event LIKE filter, e.g. `rota.on_call` |
+| `table` | string | No | The table the notification is about (`collection`), e.g. `cmn_rota`, `incident` |
+| `active` | boolean | No | Filter by active flag |
+| `limit` | number | No | 1-100, default 20 |
+| `offset` | number | No | Pagination offset, default 0 |
+
+**Returns**: Summaries with `sys_id`, `name`, `event_name`, `collection`, `active`, `type`, `subject`, `weight`, `sys_updated_on`, and `self_link`, ordered by most recently updated.
+
+## `get_notification`
+
+Get one notification definition by `sys_id` with every field: recipient configuration, gating condition and advanced-condition script, subject/message body or template reference, weight and digest settings.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `sys_id` | string | Yes | Notification `sys_id` (32 hex chars) |
+
+**Returns**: The full `sysevent_email_action` record as `{value, display_value}` pairs (so recipient lists carry sys_ids as well as names), plus `self_link`.
+
+## `search_workflows`
+
+Search classic Workflow definitions (`wf_workflow`) — the pre-Flow-Designer engine. Classic workflows do **not** appear in `search_flow_definitions` (which covers `sys_hub_flow` only); use this for anything visible in Workflow Editor, e.g. on-call assign-by-acknowledgement paging workflows.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | No | Workflow name LIKE filter |
+| `table` | string | No | The table the workflow runs on |
+| `limit` | number | No | 1-100, default 20 |
+| `offset` | number | No | Pagination offset, default 0 |
+
+**Returns**: Summaries with `sys_id`, `name`, `table`, `description`, `access`, `template`, `sys_updated_on`, and `self_link`, ordered by most recently updated.
+
+## `get_workflow`
+
+Get one classic Workflow by `sys_id` with its design expanded: header, versions (published first), and — for the published (or most recent) version — the activity nodes (`wf_activity`) and transition edges (`wf_transition`, `from` → `to` with condition) so the flow graph can be reconstructed. Per-activity input variable values are not expanded (they live in `vars`/`input` blobs). Responses use `{value, display_value}` pairs.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `sys_id` | string | Yes | Workflow `sys_id` (`wf_workflow`, 32 hex chars) |
+| `activity_limit` | number | No | 1-500, default 200 — max activity and transition rows each |
+
+**Returns**: `{ workflow, versions, activities, transitions, metadata }` — `metadata.expanded_version` names the version whose graph was expanded.
+
 ---
 
-**See also**: [Flow Logs](./flow-logs.md) · [Form Rules](./form-rules.md) · [Access Control](./access-control.md) · [Input Validation](../security/input-validation.md)
+**See also**: [Flow Logs](./flow-logs.md) · [Form Rules](./form-rules.md) · [Access Control](./access-control.md) · [On-Call](./on-call.md) · [Input Validation](../security/input-validation.md)

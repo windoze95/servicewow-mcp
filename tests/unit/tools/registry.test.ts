@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   registerPlatformMetadataTools: vi.fn(),
   registerFormRulesTools: vi.fn(),
   registerAccessControlTools: vi.fn(),
+  registerOnCallTools: vi.fn(),
   registerCatalogPrompts: vi.fn(),
   registerIncidentPrompts: vi.fn(),
   registerChangeRequestPrompts: vi.fn(),
@@ -85,6 +86,10 @@ vi.mock("../../../src/tools/formRules.js", () => ({
 
 vi.mock("../../../src/tools/accessControl.js", () => ({
   registerAccessControlTools: mocks.registerAccessControlTools,
+}));
+
+vi.mock("../../../src/tools/onCall.js", () => ({
+  registerOnCallTools: mocks.registerOnCallTools,
 }));
 
 vi.mock("../../../src/prompts/catalog.js", () => ({
@@ -202,6 +207,7 @@ describe("registerAllTools", () => {
     mocks.registerPlatformMetadataTools.mockImplementation(() => {});
     mocks.registerFormRulesTools.mockImplementation(() => {});
     mocks.registerAccessControlTools.mockImplementation(() => {});
+    mocks.registerOnCallTools.mockImplementation(() => {});
     mocks.registerCatalogPrompts.mockImplementation(() => {});
     mocks.registerIncidentPrompts.mockImplementation(() => {});
     mocks.registerChangeRequestPrompts.mockImplementation(() => {});
