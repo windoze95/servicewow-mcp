@@ -23,6 +23,7 @@ import { registerCmdbTools } from "./cmdb.js";
 import { registerPlatformMetadataTools } from "./platformMetadata.js";
 import { registerFormRulesTools } from "./formRules.js";
 import { registerAccessControlTools } from "./accessControl.js";
+import { registerOnCallTools } from "./onCall.js";
 import { registerCatalogPrompts } from "../prompts/catalog.js";
 import { registerIncidentPrompts } from "../prompts/incidents.js";
 import { registerChangeRequestPrompts } from "../prompts/changeRequests.js";
@@ -51,6 +52,26 @@ export function buildRecordUrl(
   sysId: string
 ): string {
   return `${instanceUrl}/${table}.do?sys_id=${sysId}`;
+}
+
+// Extract a reference field's sys_id across the Table API's display modes:
+// sysparm_display_value=all → {value, display_value, link}; =true → the value
+// key is ABSENT ({display_value, link} only), so fall back to the link's
+// trailing path segment; =false → {value, link}. Plain strings pass through.
+// The object handling is load-bearing: without it, grouping keys and
+// self_links become "[object Object]" (verified against the live Table API).
+export function refSysId(field: unknown): string {
+  if (typeof field === "object" && field !== null) {
+    const obj = field as { value?: unknown; link?: unknown };
+    if (typeof obj.value === "string" && obj.value.length > 0) {
+      return obj.value;
+    }
+    if (typeof obj.link === "string") {
+      return obj.link.split("/").pop() ?? "";
+    }
+    return "";
+  }
+  return String(field ?? "");
 }
 
 export function registerAllTools(
@@ -150,6 +171,7 @@ export function registerAllTools(
   registerPlatformMetadataTools(server, wrapHandler);
   registerFormRulesTools(server, wrapHandler);
   registerAccessControlTools(server, wrapHandler);
+  registerOnCallTools(server, wrapHandler);
 
   registerCatalogPrompts(server);
   registerResources(server, getContext);

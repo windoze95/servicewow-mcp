@@ -64,7 +64,7 @@ Comprehensive documentation lives in [`docs/`](./docs/README.md):
 - **[Architecture](./docs/architecture/README.md)** — System design, session lifecycle, request flow, Redis schema
 - **[Authentication](./docs/auth/README.md)** — OAuth flow, token storage, refresh
 - **[Security](./docs/security/README.md)** — Identity enforcement, input validation, rate limiting, error handling
-- **[Tools (62)](./docs/tools/README.md)** — All tools: incidents, change requests, knowledge, update sets, scheduled jobs, flow logs, CMDB, platform metadata, form rules, access control, and more
+- **[Tools (74)](./docs/tools/README.md)** — All tools: incidents, change requests, knowledge, update sets, scheduled jobs, flow logs, CMDB, platform metadata, form rules, access control, on-call, and more
 - **[Resources (5)](./docs/resources/README.md)** — MCP resources for direct record access
 - **[Prompts (7)](./docs/prompts/README.md)** — Guided workflows for incidents, change requests, knowledge, and catalog
 - **[HTTP API](./docs/api/README.md)** — Endpoints and client configuration

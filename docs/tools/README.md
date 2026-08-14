@@ -1,6 +1,6 @@
 [docs](../README.md) / tools
 
-# Tools (62)
+# Tools (74)
 
 All MCP tools provided by the server, grouped by domain.
 
@@ -70,6 +70,18 @@ All MCP tools provided by the server, grouped by domain.
 | 60 | `get_data_policy` | [Form Rules](./form-rules.md) | Get a data policy + its per-field rules |
 | 61 | `search_acls` | [Access Control](./access-control.md) | Search ACLs (sys_security_acl) by name/operation/type |
 | 62 | `get_acl` | [Access Control](./access-control.md) | Get an ACL + its roles, condition, and script |
+| 63 | `search_notifications` | [Platform Metadata](./platform-metadata.md) | Search email/notification definitions (sysevent_email_action) |
+| 64 | `get_notification` | [Platform Metadata](./platform-metadata.md) | Get a notification + recipients, condition, message by sys_id |
+| 65 | `search_on_call_shifts` | [On-Call](./on-call.md) | Search on-call shifts (cmn_rota) by group/name/active |
+| 66 | `get_on_call_shift` | [On-Call](./on-call.md) | Expand a shift into rosters, ordered members, and spans/overrides |
+| 67 | `get_on_call_schedule` | [On-Call](./on-call.md) | Get a schedule + entries + child/holiday schedules |
+| 68 | `get_on_call_escalation_policy` | [On-Call](./on-call.md) | Full escalation design for a shift: sets, steps, contact prefs |
+| 69 | `who_is_on_call` | [On-Call](./on-call.md) | Current on-call assignments from the v_on_call view |
+| 70 | `get_user_notification_devices` | [On-Call](./on-call.md) | A user's email/SMS/voice notification devices (cmn_notif_device) |
+| 71 | `search_workflows` | [Platform Metadata](./platform-metadata.md) | Search classic Workflow definitions (wf_workflow) |
+| 72 | `get_workflow` | [Platform Metadata](./platform-metadata.md) | Get a workflow + versions + activity/transition graph |
+| 73 | `search_on_call_trigger_rules` | [On-Call](./on-call.md) | Trigger rules that launch paging workflows (trigger_rule) |
+| 74 | `list_notify_numbers` | [On-Call](./on-call.md) | Notify (Twilio) SMS/voice numbers and their capabilities |
 
 ## Common Patterns
 

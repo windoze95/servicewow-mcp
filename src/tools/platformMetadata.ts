@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ToolContext, WrapHandler } from "./registry.js";
-import { buildRecordUrl } from "./registry.js";
+import { buildRecordUrl, refSysId } from "./registry.js";
 import type {
   ServiceNowListResponse,
   ServiceNowSingleResponse,
@@ -100,6 +100,66 @@ const VARIABLE_VALUE_FIELDS = [
   "variable",
   "value",
 ].join(",");
+
+// Email/notification definitions (sysevent_email_action) — the "Notifications"
+// a System Notification admin sees. `event_name` ties a notification to the
+// sysevent that fires it (e.g. rota.on_call.reminder), `collection` is the
+// table whose records it notifies about, and the recipient/condition/message
+// configuration lives in the full record.
+const NOTIFICATION_TABLE = "sysevent_email_action";
+const NOTIFICATION_SUMMARY_FIELDS = [
+  "sys_id",
+  "name",
+  "event_name",
+  "collection",
+  "active",
+  "type",
+  "subject",
+  "weight",
+  "sys_updated_on",
+].join(",");
+
+// Classic Workflow (pre-Flow Designer). wf_workflow is the header; the actual
+// design lives on wf_workflow_version rows (one is published=true), whose
+// graph nodes are wf_activity records (joined via workflow_version) connected
+// by wf_transition edges (joined via the transition's `from` activity).
+const WORKFLOW_TABLE = "wf_workflow";
+const WORKFLOW_VERSION_TABLE = "wf_workflow_version";
+const WORKFLOW_ACTIVITY_TABLE = "wf_activity";
+const WORKFLOW_TRANSITION_TABLE = "wf_transition";
+const WORKFLOW_SUMMARY_FIELDS = [
+  "sys_id",
+  "name",
+  "table",
+  "description",
+  "access",
+  "template",
+  "sys_updated_on",
+].join(",");
+const WORKFLOW_VERSION_FIELDS = [
+  "sys_id",
+  "name",
+  "workflow",
+  "published",
+  "active",
+  "table",
+  "condition",
+  "timezone",
+  "start",
+  "sys_updated_on",
+].join(",");
+const WORKFLOW_ACTIVITY_FIELDS = [
+  "sys_id",
+  "name",
+  "activity_definition",
+  "stage",
+  "parent",
+  "timeout",
+  "notes",
+].join(",");
+const WORKFLOW_TRANSITION_FIELDS = ["sys_id", "from", "to", "condition"].join(
+  ","
+);
 
 interface SysIdRecord {
   sys_id: string;
@@ -870,6 +930,395 @@ export function registerPlatformMetadataTools(
               },
               action_instance_found: instance !== null,
               action_instance_table: instance?.table ?? null,
+            },
+          },
+        };
+      }
+    )
+  );
+
+  // search_notifications
+  server.tool(
+    "search_notifications",
+    "Search email/notification definitions (sysevent_email_action) — the records under System Notification > Email > Notifications. Filter by name, the event that fires them (event_name, e.g. 'rota.on_call.reminder'), the table they notify about (collection), and active flag. Use this to find what an event actually sends and to whom (e.g. all on-call reminder/escalation notifications), then get_notification for the full recipient, condition, and message configuration. Returns a paginated summary ordered by most recently updated.",
+    {
+      name: z
+        .string()
+        .optional()
+        .describe("Filter by notification name (LIKE match)"),
+      event_name: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by firing event name (LIKE match), e.g. 'rota.on_call' matches all on-call rota events"
+        ),
+      table: z
+        .string()
+        .optional()
+        .describe(
+          "Filter by the table the notification is about (the `collection` field), e.g. 'cmn_rota' or 'incident'"
+        ),
+      active: z.boolean().optional().describe("Filter by active flag"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(20)
+        .describe("Maximum results"),
+      offset: z
+        .number()
+        .int()
+        .min(0)
+        .default(0)
+        .describe("Result offset for pagination"),
+    },
+    wrapHandler("search_notifications",
+      async (
+        ctx: ToolContext,
+        args: {
+          name?: string;
+          event_name?: string;
+          table?: string;
+          active?: boolean;
+          limit: number;
+          offset: number;
+        }
+      ) => {
+        const queryParts: string[] = [];
+
+        if (args.name) {
+          queryParts.push(`nameLIKE${sanitizeValue(args.name)}`);
+        }
+        if (args.event_name) {
+          queryParts.push(`event_nameLIKE${sanitizeValue(args.event_name)}`);
+        }
+        if (args.table) {
+          queryParts.push(`collection=${sanitizeValue(args.table)}`);
+        }
+        if (typeof args.active === "boolean") {
+          queryParts.push(`active=${args.active ? "true" : "false"}`);
+        }
+
+        queryParts.push("ORDERBYDESCsys_updated_on");
+
+        const { data, headers } = await ctx.snClient.get<
+          ServiceNowListResponse<SysIdRecord>
+        >(`/api/now/table/${NOTIFICATION_TABLE}`, {
+          params: {
+            sysparm_query: queryParts.join("^"),
+            sysparm_limit: args.limit,
+            sysparm_offset: args.offset,
+            sysparm_fields: NOTIFICATION_SUMMARY_FIELDS,
+          },
+        });
+
+        return {
+          success: true,
+          data: data.result.map((r) => ({
+            ...r,
+            self_link: buildRecordUrl(
+              ctx.instanceUrl,
+              NOTIFICATION_TABLE,
+              r.sys_id
+            ),
+          })),
+          metadata: {
+            total_count: parseInt(headers["x-total-count"] || "0", 10),
+            returned_count: data.result.length,
+            offset: args.offset,
+          },
+        };
+      }
+    )
+  );
+
+  // get_notification
+  server.tool(
+    "get_notification",
+    "Get one email/notification definition (sysevent_email_action) by sys_id with every field: recipient configuration (recipient_users, recipient_groups, recipient_fields, event_parm_1/event_parm_2 usage), gating condition and advanced-condition script, subject/message body or template reference, weight and digest settings. Fields are returned as {value, display_value} pairs so recipient lists carry sys_ids as well as names. Use after search_notifications to read exactly what a notification sends and to whom.",
+    {
+      sys_id: z
+        .string()
+        .describe("Notification sys_id (sysevent_email_action, 32 hex chars)"),
+    },
+    wrapHandler("get_notification",
+      async (ctx: ToolContext, args: { sys_id: string }) => {
+        if (!validateSysId(args.sys_id)) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "sys_id must be a 32-character sys_id",
+            },
+          };
+        }
+
+        // display=all: in the client's default `true` mode, glide_list fields
+        // (recipient_users/recipient_groups) collapse to display names with no
+        // recoverable sys_ids, which defeats the audit use case.
+        const { data } = await ctx.snClient.get<
+          ServiceNowSingleResponse<SysIdRecord>
+        >(`/api/now/table/${NOTIFICATION_TABLE}/${args.sys_id}`, {
+          params: { sysparm_display_value: "all" },
+        });
+
+        return {
+          success: true,
+          data: {
+            ...data.result,
+            self_link: buildRecordUrl(
+              ctx.instanceUrl,
+              NOTIFICATION_TABLE,
+              refSysId(data.result.sys_id)
+            ),
+          },
+        };
+      }
+    )
+  );
+
+  // search_workflows
+  server.tool(
+    "search_workflows",
+    "Search classic Workflow definitions (wf_workflow — the pre-Flow-Designer engine that still drives things like on-call assign-by-acknowledgement paging). Filter by name or the table the workflow runs on. Classic workflows do NOT appear in search_flow_definitions (that covers sys_hub_flow only); use this for anything visible in Workflow Editor. Follow up with get_workflow to read a workflow's published version, activities, and transitions.",
+    {
+      name: z
+        .string()
+        .optional()
+        .describe("Filter by workflow name (LIKE match)"),
+      table: z
+        .string()
+        .optional()
+        .describe("Filter by the table the workflow runs on, e.g. 'incident'"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(20)
+        .describe("Maximum results"),
+      offset: z
+        .number()
+        .int()
+        .min(0)
+        .default(0)
+        .describe("Result offset for pagination"),
+    },
+    wrapHandler("search_workflows",
+      async (
+        ctx: ToolContext,
+        args: { name?: string; table?: string; limit: number; offset: number }
+      ) => {
+        const queryParts: string[] = [];
+
+        if (args.name) {
+          queryParts.push(`nameLIKE${sanitizeValue(args.name)}`);
+        }
+        if (args.table) {
+          queryParts.push(`table=${sanitizeValue(args.table)}`);
+        }
+
+        queryParts.push("ORDERBYDESCsys_updated_on");
+
+        const { data, headers } = await ctx.snClient.get<
+          ServiceNowListResponse<SysIdRecord>
+        >(`/api/now/table/${WORKFLOW_TABLE}`, {
+          params: {
+            sysparm_query: queryParts.join("^"),
+            sysparm_limit: args.limit,
+            sysparm_offset: args.offset,
+            sysparm_fields: WORKFLOW_SUMMARY_FIELDS,
+          },
+        });
+
+        return {
+          success: true,
+          data: data.result.map((r) => ({
+            ...r,
+            self_link: buildRecordUrl(
+              ctx.instanceUrl,
+              WORKFLOW_TABLE,
+              refSysId(r.sys_id)
+            ),
+          })),
+          metadata: {
+            total_count: parseInt(headers["x-total-count"] || "0", 10),
+            returned_count: data.result.length,
+            offset: args.offset,
+          },
+        };
+      }
+    )
+  );
+
+  // get_workflow
+  server.tool(
+    "get_workflow",
+    "Get one classic Workflow (wf_workflow) by sys_id with its design expanded: the workflow header, its versions (wf_workflow_version — the published one is the live design), and for the published (or, if none, most recent) version the activity nodes (wf_activity: name, activity definition type, stage, timeout) and the transition edges between them (wf_transition: from → to with condition) so the actual flow graph can be reconstructed. Per-activity input variable VALUES are not expanded (they live in activity `vars`/`input` blobs). Responses use {value, display_value} pairs so references carry sys_ids and names. Use after search_workflows to read what a workflow actually does — e.g. which notification/voice/SMS steps an on-call paging workflow runs.",
+    {
+      sys_id: z
+        .string()
+        .describe("Workflow sys_id (wf_workflow, 32 hex chars)"),
+      activity_limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(500)
+        .default(200)
+        .describe("Maximum activity and transition rows to return each"),
+    },
+    wrapHandler("get_workflow",
+      async (
+        ctx: ToolContext,
+        args: { sys_id: string; activity_limit: number }
+      ) => {
+        if (!validateSysId(args.sys_id)) {
+          return {
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "sys_id must be a 32-character sys_id",
+            },
+          };
+        }
+
+        const { data: headerData } = await ctx.snClient.get<
+          ServiceNowSingleResponse<SysIdRecord>
+        >(`/api/now/table/${WORKFLOW_TABLE}/${args.sys_id}`, {
+          params: { sysparm_display_value: "all" },
+        });
+
+        // Published-first so versions[0] is the live design when one exists;
+        // otherwise the most recently updated draft leads.
+        const { data: versionData, headers: versionHeaders } =
+          await ctx.snClient.get<ServiceNowListResponse<SysIdRecord>>(
+            `/api/now/table/${WORKFLOW_VERSION_TABLE}`,
+            {
+              params: {
+                sysparm_query: `workflow=${args.sys_id}^ORDERBYDESCpublished^ORDERBYDESCsys_updated_on`,
+                sysparm_limit: 10,
+                sysparm_fields: WORKFLOW_VERSION_FIELDS,
+                sysparm_display_value: "all",
+              },
+            }
+          );
+        const versionTotal = parseInt(
+          versionHeaders["x-total-count"] || "0",
+          10
+        );
+
+        const versions = versionData.result.map((v) => ({
+          ...v,
+          self_link: buildRecordUrl(
+            ctx.instanceUrl,
+            WORKFLOW_VERSION_TABLE,
+            refSysId(v.sys_id)
+          ),
+        }));
+
+        let activities: Array<SysIdRecord & { self_link: string }> = [];
+        let transitions: Array<SysIdRecord & { self_link: string }> = [];
+        let activityMetadata = {
+          total_count: 0,
+          returned_count: 0,
+          truncated: false,
+        };
+        let transitionMetadata = {
+          total_count: 0,
+          returned_count: 0,
+          truncated: false,
+        };
+        const expandedVersionId =
+          versionData.result.length > 0
+            ? refSysId(versionData.result[0].sys_id)
+            : null;
+
+        if (expandedVersionId) {
+          const { data: activityData, headers: activityHeaders } =
+            await ctx.snClient.get<ServiceNowListResponse<SysIdRecord>>(
+              `/api/now/table/${WORKFLOW_ACTIVITY_TABLE}`,
+              {
+                params: {
+                  sysparm_query: `workflow_version=${expandedVersionId}^ORDERBYname`,
+                  sysparm_limit: args.activity_limit,
+                  sysparm_fields: WORKFLOW_ACTIVITY_FIELDS,
+                  sysparm_display_value: "all",
+                },
+              }
+            );
+          activities = activityData.result.map((a) => ({
+            ...a,
+            self_link: buildRecordUrl(
+              ctx.instanceUrl,
+              WORKFLOW_ACTIVITY_TABLE,
+              refSysId(a.sys_id)
+            ),
+          }));
+          const activityTotal = parseInt(
+            activityHeaders["x-total-count"] || "0",
+            10
+          );
+          activityMetadata = {
+            total_count: activityTotal,
+            returned_count: activityData.result.length,
+            truncated: activityTotal > activityData.result.length,
+          };
+
+          const { data: transitionData, headers: transitionHeaders } =
+            await ctx.snClient.get<ServiceNowListResponse<SysIdRecord>>(
+              `/api/now/table/${WORKFLOW_TRANSITION_TABLE}`,
+              {
+                params: {
+                  sysparm_query: `from.workflow_version=${expandedVersionId}`,
+                  sysparm_limit: args.activity_limit,
+                  sysparm_fields: WORKFLOW_TRANSITION_FIELDS,
+                  sysparm_display_value: "all",
+                },
+              }
+            );
+          transitions = transitionData.result.map((t) => ({
+            ...t,
+            self_link: buildRecordUrl(
+              ctx.instanceUrl,
+              WORKFLOW_TRANSITION_TABLE,
+              refSysId(t.sys_id)
+            ),
+          }));
+          const transitionTotal = parseInt(
+            transitionHeaders["x-total-count"] || "0",
+            10
+          );
+          transitionMetadata = {
+            total_count: transitionTotal,
+            returned_count: transitionData.result.length,
+            truncated: transitionTotal > transitionData.result.length,
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            workflow: {
+              ...headerData.result,
+              self_link: buildRecordUrl(
+                ctx.instanceUrl,
+                WORKFLOW_TABLE,
+                refSysId(headerData.result.sys_id)
+              ),
+            },
+            versions,
+            activities,
+            transitions,
+            metadata: {
+              versions: {
+                total_count: versionTotal,
+                returned_count: versionData.result.length,
+                truncated: versionTotal > versionData.result.length,
+              },
+              expanded_version: expandedVersionId,
+              activities: activityMetadata,
+              transitions: transitionMetadata,
             },
           },
         };
