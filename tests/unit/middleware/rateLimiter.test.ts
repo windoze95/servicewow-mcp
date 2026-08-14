@@ -44,4 +44,43 @@ describe("RateLimiter", () => {
 
     expect(allowed).toBe(true);
   });
+
+  it("bypasses Redis entirely for exempt users", async () => {
+    redis.eval.mockResolvedValue(0);
+    const exempt = "abc123def456abc123def456abc12345";
+    const limiter = new RateLimiter(redis as any, 10, [exempt]);
+
+    const allowed = await limiter.checkLimit(exempt);
+
+    expect(allowed).toBe(true);
+    expect(redis.eval).not.toHaveBeenCalled();
+  });
+
+  it("matches exempt users case-insensitively (sys_ids are hex)", async () => {
+    redis.eval.mockResolvedValue(0);
+    const limiter = new RateLimiter(redis as any, 10, [
+      "ABC123DEF456ABC123DEF456ABC12345",
+    ]);
+
+    const allowed = await limiter.checkLimit(
+      "abc123def456abc123def456abc12345"
+    );
+
+    expect(allowed).toBe(true);
+    expect(redis.eval).not.toHaveBeenCalled();
+  });
+
+  it("still limits non-exempt users when exemptions are configured", async () => {
+    redis.eval.mockResolvedValue(0);
+    const limiter = new RateLimiter(redis as any, 10, [
+      "abc123def456abc123def456abc12345",
+    ]);
+
+    const allowed = await limiter.checkLimit(
+      "ffffffffffffffffffffffffffffffff"
+    );
+
+    expect(allowed).toBe(false);
+    expect(redis.eval).toHaveBeenCalled();
+  });
 });

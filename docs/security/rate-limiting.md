@@ -9,12 +9,14 @@ Per-user rate limiting uses a token bucket algorithm implemented as a Redis Lua 
 | Variable | Default | Description |
 |---|---|---|
 | `RATE_LIMIT_PER_USER` | `60` | Maximum requests per minute per user |
+| `RATE_LIMIT_EXEMPT_USERS` | _(empty)_ | Comma-separated user sys_ids that bypass the limiter entirely |
 
 ## Algorithm: Token Bucket
 
 The token bucket refills continuously. Each request consumes one token. When the bucket is empty, requests are rejected.
 
 - **Capacity**: `RATE_LIMIT_PER_USER` (default 60)
+- **Exemptions**: sys_ids listed in `RATE_LIMIT_EXEMPT_USERS` skip the token bucket before any Redis call (matched case-insensitively; non-sys_id entries are ignored with a startup warning)
 - **Window**: 60 seconds
 - **Refill rate**: `capacity / window` tokens per second (1 token/second at default)
 

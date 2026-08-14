@@ -20,6 +20,12 @@ const configSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
   RATE_LIMIT_PER_USER: z.coerce.number().int().positive().default(60),
+  RATE_LIMIT_EXEMPT_USERS: z
+    .string()
+    .default("")
+    .describe(
+      "Comma-separated ServiceNow user sys_ids that bypass per-user rate limiting (e.g. admin/automation users)"
+    ),
   METRICS_TOKEN: z
     .string()
     .min(16, "METRICS_TOKEN must be at least 16 characters")

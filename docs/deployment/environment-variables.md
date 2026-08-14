@@ -23,6 +23,7 @@ Full configuration reference. All variables are validated at startup by Zod (`sr
 | `NODE_ENV` | `development` | `development`, `production`, or `test` |
 | `LOG_LEVEL` | `info` | Pino log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace` |
 | `RATE_LIMIT_PER_USER` | `60` | Maximum requests per minute per user. See [Rate Limiting](../security/rate-limiting.md). |
+| `RATE_LIMIT_EXEMPT_USERS` | _(empty)_ | Comma-separated ServiceNow user sys_ids that bypass per-user rate limiting entirely (admin/automation users). Entries that are not 32-char sys_ids are ignored with a startup warning. |
 | `MCP_SERVER_URL` | `http://localhost:{MCP_PORT}` | Externally-reachable server URL. Used as the OAuth issuer URL. Must be HTTPS in production (localhost exempt). |
 | `SN_CALLBACK_URI` | `{MCP_SERVER_URL}/oauth/sn-callback` | Redirect URI for the ServiceNow leg of the OAuth flow. Must match ServiceNow OAuth app configuration. |
 | `TLS_CERT_PATH` | — | Path to TLS certificate. Must pair with `TLS_KEY_PATH`. See [Native TLS](./native-tls.md). |
