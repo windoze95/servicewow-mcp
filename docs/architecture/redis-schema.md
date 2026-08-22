@@ -133,6 +133,17 @@ Per-day (UTC) tool-usage counters. Hash fields are `<toolName>|<userName>`; valu
 | **Set by** | `UsageMetrics.record()` (called from the tool `wrapHandler`) |
 | **Read by** | `UsageMetrics.summary()` (`GET /metrics/usage`) |
 
+### 11. `metrics:total:calls` / `metrics:total:errors` — All-Time Usage Counters
+
+Cumulative counters since metrics were first deployed. Same field layout as the per-day hashes but never expire — size is bounded by distinct tools × users, not by time, so growth is a few KB total.
+
+| Field | Value |
+|---|---|
+| **Type** | Hash (`<toolName>\|<userName>` → count) |
+| **TTL** | None (permanent) |
+| **Set by** | `UsageMetrics.record()` (same multi as the per-day increment) |
+| **Read by** | `UsageMetrics.summary()` — returned as the `allTime` section |
+
 ## Summary Table
 
 | Key Pattern | Type | TTL | Purpose |
@@ -148,6 +159,8 @@ Per-day (UTC) tool-usage counters. Hash fields are `<toolName>|<userName>`; valu
 | `mcp_refresh:<token>` | String (JSON) | 30 days | MCP refresh tokens |
 | `metrics:calls:<date>` | Hash | 400 days | Successful tool calls per tool/user/day |
 | `metrics:errors:<date>` | Hash | 400 days | Failed tool calls per tool/user/day |
+| `metrics:total:calls` | Hash | none | All-time successful tool calls per tool/user |
+| `metrics:total:errors` | Hash | none | All-time failed tool calls per tool/user |
 
 ---
 

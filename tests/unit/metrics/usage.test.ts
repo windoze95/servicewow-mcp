@@ -45,7 +45,7 @@ describe("UsageMetrics.record", () => {
     vi.useRealTimers();
   });
 
-  it("increments the daily calls hash keyed by tool and user", () => {
+  it("increments the daily and all-time calls hashes keyed by tool and user", () => {
     metrics.record("lookup_user", "john.doe", true);
 
     expect(chain.hincrby).toHaveBeenCalledWith(
@@ -58,14 +58,24 @@ describe("UsageMetrics.record", () => {
       400 * 86400,
       "NX"
     );
+    expect(chain.hincrby).toHaveBeenCalledWith(
+      "metrics:total:calls",
+      "lookup_user|john.doe",
+      1
+    );
     expect(chain.exec).toHaveBeenCalled();
   });
 
-  it("uses the errors hash for failed calls", () => {
+  it("uses the errors hashes for failed calls", () => {
     metrics.record("lookup_user", "john.doe", false);
 
     expect(chain.hincrby).toHaveBeenCalledWith(
       `metrics:errors:${TODAY}`,
+      "lookup_user|john.doe",
+      1
+    );
+    expect(chain.hincrby).toHaveBeenCalledWith(
+      "metrics:total:errors",
       "lookup_user|john.doe",
       1
     );
@@ -113,12 +123,15 @@ describe("UsageMetrics.summary", () => {
   });
 
   it("aggregates calls and errors across days, tools, and users", async () => {
-    // days=2 → hgetall order: calls today, calls yesterday, errors today, errors yesterday
+    // days=2 → hgetall order: calls today, calls yesterday, errors today,
+    // errors yesterday, then all-time calls and all-time errors
     pipeline.exec.mockResolvedValue([
       [null, { "lookup_user|john.doe": "3", "search_incidents|jane.roe": "2" }],
       [null, { "lookup_user|john.doe": "5" }],
       [null, { "lookup_user|john.doe": "1" }],
       [null, {}],
+      [null, { "lookup_user|john.doe": "40", "search_incidents|jane.roe": "7" }],
+      [null, { "lookup_user|john.doe": "2" }],
     ]);
 
     const metrics = new UsageMetrics(redis as never);
@@ -149,6 +162,14 @@ describe("UsageMetrics.summary", () => {
       calls: 8,
       errors: 1,
     });
+    expect(pipeline.hgetall).toHaveBeenCalledWith("metrics:total:calls");
+    expect(pipeline.hgetall).toHaveBeenCalledWith("metrics:total:errors");
+    expect(summary.allTime.totals).toEqual({ calls: 47, errors: 2 });
+    expect(summary.allTime.byTool).toEqual({
+      lookup_user: { calls: 40, errors: 2 },
+      search_incidents: { calls: 7, errors: 0 },
+    });
+    expect(summary.allTime.byUser["john.doe"]).toEqual({ calls: 40, errors: 2 });
   });
 
   it("skips per-day results that errored and ignores malformed counts", async () => {
@@ -162,6 +183,7 @@ describe("UsageMetrics.summary", () => {
 
     expect(summary.totals).toEqual({ calls: 0, errors: 0 });
     expect(summary.byTool).toEqual({});
+    expect(summary.allTime.totals).toEqual({ calls: 0, errors: 0 });
   });
 
   it("caps the window at MAX_SUMMARY_DAYS and floors it at 1", async () => {
