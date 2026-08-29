@@ -28,7 +28,7 @@ export async function paginateAll<T>(
     const response = await fetcher(limit, offset);
     totalCount = response.totalCount;
     allResults.push(...response.results);
-    if (response.results.length < limit) {
+    if (startOffset + allResults.length >= totalCount || response.results.length < limit) {
       return { results: allResults, totalCount, truncated: false };
     }
   }
