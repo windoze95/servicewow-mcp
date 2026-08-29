@@ -34,13 +34,11 @@ function calculateDelay(
   options: Required<RetryOptions>,
   retryAfterMs?: number
 ): number {
-  const exponentialDelay = Math.min(
-    options.initialDelayMs * Math.pow(options.backoffMultiplier, attempt),
-    options.maxDelayMs
-  );
-  // Add 0-20% jitter
+  const exponentialDelay =
+    options.initialDelayMs * Math.pow(options.backoffMultiplier, attempt);
+  // Add 0-20% jitter, then clamp to the configured maximum delay.
   const jitter = exponentialDelay * (Math.random() * 0.2);
-  const calculatedDelay = exponentialDelay + jitter;
+  const calculatedDelay = Math.min(exponentialDelay + jitter, options.maxDelayMs);
   // Honor Retry-After if present and larger
   if (retryAfterMs !== undefined && retryAfterMs > calculatedDelay) {
     return retryAfterMs;
