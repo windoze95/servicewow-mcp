@@ -14,6 +14,7 @@ import {
   normalizeDateBoundary,
 } from "../utils/validators.js";
 import { sanitizeValue } from "../servicenow/queryBuilder.js";
+import type { ServiceNowApiError } from "../servicenow/client.js";
 
 export function registerIncidentTools(
   server: McpServer,
@@ -294,9 +295,28 @@ export function registerIncidentTools(
         };
       }
 
-      const { data } = await ctx.snClient.get<
-        ServiceNowSingleResponse<Incident> | ServiceNowListResponse<Incident>
-      >(path, { params });
+      let data: ServiceNowSingleResponse<Incident> | ServiceNowListResponse<Incident>;
+      try {
+        ({ data } = await ctx.snClient.get<
+          ServiceNowSingleResponse<Incident> | ServiceNowListResponse<Incident>
+        >(path, { params }));
+      } catch (err) {
+        if (
+          typeof err === "object" &&
+          err !== null &&
+          "statusCode" in err &&
+          (err as ServiceNowApiError).statusCode === 404
+        ) {
+          return {
+            success: false,
+            error: {
+              code: "NOT_FOUND",
+              message: `No incident found with identifier: ${args.identifier}`,
+            },
+          };
+        }
+        throw err;
+      }
 
       const result = "result" in data
         ? Array.isArray(data.result)
