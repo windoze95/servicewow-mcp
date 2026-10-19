@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosError } from "axios";
 import { logger } from "../utils/logger.js";
+import { withRetry } from "./retry.js";
 
 export interface ServiceNowRequestOptions {
   params?: Record<string, string | number | boolean>;
@@ -35,33 +36,35 @@ export class ServiceNowClient {
     path: string,
     options: ServiceNowRequestOptions = {}
   ): Promise<{ data: T; headers: Record<string, string> }> {
-    const startTime = Date.now();
-    try {
-      const response = await this.client.get(path, {
-        params: {
-          sysparm_display_value: "true",
-          ...options.params,
-        },
-        headers: options.headers,
-      });
+    return withRetry(async () => {
+      const startTime = Date.now();
+      try {
+        const response = await this.client.get(path, {
+          params: {
+            sysparm_display_value: "true",
+            ...options.params,
+          },
+          headers: options.headers,
+        });
 
-      logger.debug(
-        {
-          method: "GET",
-          path,
-          status: response.status,
-          duration: Date.now() - startTime,
-        },
-        "ServiceNow API call"
-      );
+        logger.debug(
+          {
+            method: "GET",
+            path,
+            status: response.status,
+            duration: Date.now() - startTime,
+          },
+          "ServiceNow API call"
+        );
 
-      return {
-        data: response.data as T,
-        headers: response.headers as Record<string, string>,
-      };
-    } catch (err) {
-      throw this.mapError(err as AxiosError, "GET", path, startTime);
-    }
+        return {
+          data: response.data as T,
+          headers: response.headers as Record<string, string>,
+        };
+      } catch (err) {
+        throw this.mapError(err as AxiosError, "GET", path, startTime);
+      }
+    });
   }
 
   async post<T = unknown>(
@@ -69,33 +72,35 @@ export class ServiceNowClient {
     body: unknown,
     options: ServiceNowRequestOptions = {}
   ): Promise<{ data: T; headers: Record<string, string> }> {
-    const startTime = Date.now();
-    try {
-      const response = await this.client.post(path, body, {
-        params: {
-          sysparm_display_value: "true",
-          ...options.params,
-        },
-        headers: options.headers,
-      });
+    return withRetry(async () => {
+      const startTime = Date.now();
+      try {
+        const response = await this.client.post(path, body, {
+          params: {
+            sysparm_display_value: "true",
+            ...options.params,
+          },
+          headers: options.headers,
+        });
 
-      logger.debug(
-        {
-          method: "POST",
-          path,
-          status: response.status,
-          duration: Date.now() - startTime,
-        },
-        "ServiceNow API call"
-      );
+        logger.debug(
+          {
+            method: "POST",
+            path,
+            status: response.status,
+            duration: Date.now() - startTime,
+          },
+          "ServiceNow API call"
+        );
 
-      return {
-        data: response.data as T,
-        headers: response.headers as Record<string, string>,
-      };
-    } catch (err) {
-      throw this.mapError(err as AxiosError, "POST", path, startTime);
-    }
+        return {
+          data: response.data as T,
+          headers: response.headers as Record<string, string>,
+        };
+      } catch (err) {
+        throw this.mapError(err as AxiosError, "POST", path, startTime);
+      }
+    });
   }
 
   async patch<T = unknown>(
@@ -103,33 +108,35 @@ export class ServiceNowClient {
     body: unknown,
     options: ServiceNowRequestOptions = {}
   ): Promise<{ data: T; headers: Record<string, string> }> {
-    const startTime = Date.now();
-    try {
-      const response = await this.client.patch(path, body, {
-        params: {
-          sysparm_display_value: "true",
-          ...options.params,
-        },
-        headers: options.headers,
-      });
+    return withRetry(async () => {
+      const startTime = Date.now();
+      try {
+        const response = await this.client.patch(path, body, {
+          params: {
+            sysparm_display_value: "true",
+            ...options.params,
+          },
+          headers: options.headers,
+        });
 
-      logger.debug(
-        {
-          method: "PATCH",
-          path,
-          status: response.status,
-          duration: Date.now() - startTime,
-        },
-        "ServiceNow API call"
-      );
+        logger.debug(
+          {
+            method: "PATCH",
+            path,
+            status: response.status,
+            duration: Date.now() - startTime,
+          },
+          "ServiceNow API call"
+        );
 
-      return {
-        data: response.data as T,
-        headers: response.headers as Record<string, string>,
-      };
-    } catch (err) {
-      throw this.mapError(err as AxiosError, "PATCH", path, startTime);
-    }
+        return {
+          data: response.data as T,
+          headers: response.headers as Record<string, string>,
+        };
+      } catch (err) {
+        throw this.mapError(err as AxiosError, "PATCH", path, startTime);
+      }
+    });
   }
 
   private mapError(
