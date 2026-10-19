@@ -42,6 +42,8 @@ export interface McpRefreshData {
   userSysId: string;
   clientId: string;
   scopes: string[];
+  /** The current access token tied to this refresh grant, so it can be revoked on rotation. */
+  currentAccessToken?: string;
 }
 
 export function createRedisClient(url: string): Redis {
