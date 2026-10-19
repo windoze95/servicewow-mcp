@@ -70,7 +70,20 @@ export function mapServiceNowError(
   }
 }
 
+function isToolError(err: unknown): err is ToolError {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as ToolError).success === false &&
+    typeof (err as ToolError).error?.code === "string"
+  );
+}
+
 export function handleToolError(err: unknown): ToolError {
+  if (isToolError(err)) {
+    return err;
+  }
+
   if (isServiceNowApiError(err)) {
     return mapServiceNowError(err.statusCode, err.responseBody);
   }
