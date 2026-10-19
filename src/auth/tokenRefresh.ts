@@ -7,6 +7,8 @@ import { logger } from "../utils/logger.js";
 
 const REFRESH_BUFFER_SECONDS = 60;
 const LOCK_TTL_SECONDS = 10;
+const LOCK_POLL_INTERVAL_MS = 200;
+const LOCK_POLL_MAX_RETRIES = Math.ceil((LOCK_TTL_SECONDS * 1000) / LOCK_POLL_INTERVAL_MS);
 
 export class TokenRefresher {
   constructor(
@@ -47,10 +49,31 @@ export class TokenRefresher {
     );
 
     if (!acquired) {
-      // Another request is refreshing — wait briefly and re-read
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Another request is refreshing — poll until lock releases or timeout
+      for (let i = 0; i < LOCK_POLL_MAX_RETRIES; i++) {
+        await new Promise((resolve) => setTimeout(resolve, LOCK_POLL_INTERVAL_MS));
+        const refreshed = await this.tokenStore.getToken(userSysId);
+        if (refreshed && refreshed.expires_at - Math.floor(Date.now() / 1000) > REFRESH_BUFFER_SECONDS) {
+          return refreshed;
+        }
+        // If the lock was released (by TTL or success), try acquiring it
+        const retryAcquired = await this.redis.set(
+          lockKey,
+          lockValue,
+          "EX",
+          LOCK_TTL_SECONDS,
+          "NX"
+        );
+        if (retryAcquired) {
+          // We acquired the lock — the original holder failed; fall through to refresh
+          break;
+        }
+      }
+      // After exhausting retries, do one final token check
       const refreshed = await this.tokenStore.getToken(userSysId);
-      if (refreshed) return refreshed;
+      if (refreshed && refreshed.expires_at - Math.floor(Date.now() / 1000) > REFRESH_BUFFER_SECONDS) {
+        return refreshed;
+      }
       throw new AuthRequiredError(userSysId);
     }
 
