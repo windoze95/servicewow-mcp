@@ -62,10 +62,16 @@ export function mapServiceNowError(
           "ServiceNow is currently unavailable. Please try again shortly."
         );
       }
+      // Security: do not pass raw responseBody to the client — it may
+      // contain internal ServiceNow details, stack traces, or credentials.
+      // Log it server-side for debugging; only send a safe reference to the client.
+      logger.error("Unexpected ServiceNow error", {
+        statusCode,
+        responseBody,
+      });
       return createToolError(
         "UNEXPECTED_ERROR",
-        "An unexpected error occurred.",
-        responseBody
+        `An unexpected error occurred (HTTP ${statusCode}). Reference the server logs for details.`
       );
   }
 }
